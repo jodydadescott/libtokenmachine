@@ -26,24 +26,24 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/jodydadescott/libtokenmachine"
-	"github.com/jodydadescott/libtokenmachine/internal"
+	"github.com/jodydadescott/libtokenmachine/core"
+	"github.com/jodydadescott/libtokenmachine/internal/publickey"
 )
 
 // PubKeyDummyCache ...
 type PubKeyDummyCache struct {
 	mutex    sync.Mutex
-	internal map[string]*internal.PublicKey
+	internal map[string]*publickey.PublicKey
 }
 
 func newDummyPublicKeyCache() *PubKeyDummyCache {
 	return &PubKeyDummyCache{
-		internal: make(map[string]*internal.PublicKey),
+		internal: make(map[string]*publickey.PublicKey),
 	}
 }
 
 // PutKey Puts key
-func (t *PubKeyDummyCache) PutKey(key *internal.PublicKey) error {
+func (t *PubKeyDummyCache) PutKey(key *publickey.PublicKey) error {
 
 	if key.Iss == "" {
 		return fmt.Errorf("Missing Issuer (iss)")
@@ -61,7 +61,7 @@ func (t *PubKeyDummyCache) PutKey(key *internal.PublicKey) error {
 
 // GetKey Returns PublicKey from cache if found. If not gets PublicKey from
 // validated issuer, stores in cache and returns copy
-func (t *PubKeyDummyCache) GetKey(iss, kid string) (*internal.PublicKey, error) {
+func (t *PubKeyDummyCache) GetKey(iss, kid string) (*publickey.PublicKey, error) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
@@ -70,7 +70,7 @@ func (t *PubKeyDummyCache) GetKey(iss, kid string) (*internal.PublicKey, error) 
 		return key.Copy(), nil
 	}
 
-	return nil, libtokenmachine.ErrNotFound
+	return nil, core.ErrNotFound
 }
 
 func Test1(t *testing.T) {
@@ -157,7 +157,7 @@ func runTest1() error {
 	if err == nil {
 		return fmt.Errorf("Expected ErrExpired, got nil")
 	}
-	if err != libtokenmachine.ErrExpired {
+	if err != core.ErrExpired {
 		return fmt.Errorf(fmt.Sprintf("Expected ErrExpired, got %s", err.Error()))
 	}
 
@@ -166,7 +166,7 @@ func runTest1() error {
 	if err == nil {
 		return fmt.Errorf("Expected ErrExpired, got nil")
 	}
-	if err != libtokenmachine.ErrExpired {
+	if err != core.ErrExpired {
 		return fmt.Errorf(fmt.Sprintf("Expected ErrExpired, got %s", err.Error()))
 	}
 
@@ -175,7 +175,7 @@ func runTest1() error {
 	if err == nil {
 		return fmt.Errorf("Expected ErrSignatureInvalid, got nil")
 	}
-	if err != libtokenmachine.ErrTokenInvalid {
+	if err != core.ErrTokenInvalid {
 		return fmt.Errorf(fmt.Sprintf("Expected ErrTokenInvalid, got %s", err.Error()))
 	}
 
@@ -183,7 +183,7 @@ func runTest1() error {
 	if err == nil {
 		return fmt.Errorf("Expected ErrNotFound, got nil")
 	}
-	if err != libtokenmachine.ErrTokenInvalid {
+	if err != core.ErrTokenInvalid {
 		return fmt.Errorf(fmt.Sprintf("Expected ErrTokenInvalid, got %s", err.Error()))
 	}
 
@@ -209,7 +209,7 @@ func newToken(iss, kid string, exp int64, key *ecdsa.PrivateKey) (string, error)
 	return tokenString, nil
 }
 
-func generateKeypair(iss, kid string, exp int64) (*ecdsa.PrivateKey, *internal.PublicKey, error) {
+func generateKeypair(iss, kid string, exp int64) (*ecdsa.PrivateKey, *publickey.PublicKey, error) {
 
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
@@ -217,7 +217,7 @@ func generateKeypair(iss, kid string, exp int64) (*ecdsa.PrivateKey, *internal.P
 		return nil, nil, err
 	}
 
-	publicKey := &internal.PublicKey{
+	publicKey := &publickey.PublicKey{
 		EcdsaPublicKey: privateKey.Public().(*ecdsa.PublicKey),
 		Iss:            iss,
 		Kid:            kid,

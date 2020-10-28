@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jodydadescott/libtokenmachine"
-	"github.com/jodydadescott/libtokenmachine/internal"
+	"github.com/jodydadescott/libtokenmachine/core"
+	"github.com/jodydadescott/libtokenmachine/internal/util"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"go.uber.org/zap"
@@ -39,13 +39,13 @@ const (
 
 // Config Config
 type Config struct {
-	Secrets  []*libtokenmachine.Secret
+	Secrets  []*core.Secret
 	Lifetime int64
 }
 
 type secretWrapper struct {
 	name, seed string
-	timePeriod *internal.TimePeriod
+	timePeriod *util.TimePeriod
 	mutex      sync.Mutex
 }
 
@@ -84,7 +84,7 @@ func (config *Config) Build() (*Cache, error) {
 	return t, nil
 }
 
-func (t *Cache) loadSecrets(secrets []*libtokenmachine.Secret) error {
+func (t *Cache) loadSecrets(secrets []*core.Secret) error {
 
 	if secrets == nil || len(secrets) <= 0 {
 		zap.L().Warn("No secrets to load?")
@@ -102,7 +102,7 @@ func (t *Cache) loadSecrets(secrets []*libtokenmachine.Secret) error {
 	return nil
 }
 
-func (t *Cache) addSecret(secret *libtokenmachine.Secret) error {
+func (t *Cache) addSecret(secret *core.Secret) error {
 
 	// Must have map locked!
 
@@ -128,7 +128,7 @@ func (t *Cache) addSecret(secret *libtokenmachine.Secret) error {
 
 	t.internal[secret.Name] = &secretWrapper{
 		name:       secret.Name,
-		timePeriod: internal.NewPeriod(lifetime),
+		timePeriod: util.NewPeriod(lifetime),
 		seed:       seed,
 	}
 
@@ -136,11 +136,11 @@ func (t *Cache) addSecret(secret *libtokenmachine.Secret) error {
 }
 
 // GetSecret Returns secret if found and authorized
-func (t *Cache) GetSecret(name string) (*libtokenmachine.Secret, error) {
+func (t *Cache) GetSecret(name string) (*core.Secret, error) {
 
 	if name == "" {
 		zap.L().Debug("name is empty")
-		return nil, libtokenmachine.ErrNotFound
+		return nil, core.ErrNotFound
 	}
 
 	t.mutex.RLock()
@@ -153,7 +153,7 @@ func (t *Cache) GetSecret(name string) (*libtokenmachine.Secret, error) {
 
 	if !ok {
 		zap.L().Debug(fmt.Sprintf("Secret with name %s not found", name))
-		return nil, libtokenmachine.ErrNotFound
+		return nil, core.ErrNotFound
 	}
 
 	wrapper.mutex.Lock()
@@ -173,7 +173,7 @@ func (t *Cache) GetSecret(name string) (*libtokenmachine.Secret, error) {
 		return nil, err
 	}
 
-	result := &libtokenmachine.Secret{
+	result := &core.Secret{
 		Exp:    nowPeriod.Time().Unix(),
 		Secret: nowsecret,
 	}
@@ -210,7 +210,7 @@ func (t *secretWrapper) getSecretString(now time.Time) (string, error) {
 
 	if err != nil {
 		zap.L().Error(fmt.Sprintf("Unexpected error %s", err))
-		return "", libtokenmachine.ErrServerFail
+		return "", core.ErrServerFail
 	}
 
 	hash := sha256.Sum256([]byte(otp + t.seed))

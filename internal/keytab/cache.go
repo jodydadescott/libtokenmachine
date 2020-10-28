@@ -31,8 +31,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jodydadescott/libtokenmachine"
-	"github.com/jodydadescott/libtokenmachine/internal"
+	"github.com/jodydadescott/libtokenmachine/core"
+	"github.com/jodydadescott/libtokenmachine/internal/util"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"go.uber.org/zap"
@@ -54,7 +54,7 @@ var (
 //
 // TimePeriod: Time Period for Keytab Renewals
 type Config struct {
-	Keytabs  []*libtokenmachine.Keytab
+	Keytabs  []*core.Keytab
 	Lifetime int64
 }
 
@@ -99,9 +99,9 @@ type keytabWrapper struct {
 	mutex           sync.RWMutex
 	nextUpdate      time.Time
 	principal, seed string
-	keytab          *libtokenmachine.Keytab
+	keytab          *core.Keytab
 	err             error
-	timePeriod      *internal.TimePeriod
+	timePeriod      *util.TimePeriod
 }
 
 // Build Returns new instance of Keytabs
@@ -172,7 +172,7 @@ func (t *Cache) init(config *Config) error {
 
 		t.internal[keytab.Principal] = &keytabWrapper{
 			principal:  keytab.Principal,
-			timePeriod: internal.NewPeriod(lifetime),
+			timePeriod: util.NewPeriod(lifetime),
 			seed:       seed,
 		}
 		zap.L().Debug(fmt.Sprintf("Loaded principal %s", keytab.Principal))
@@ -187,9 +187,9 @@ func (t *Cache) run() {
 	zap.L().Debug("Starting")
 	t.wg.Add(1)
 
-	timeperiod := internal.NewPeriod(time.Minute)
+	timeperiod := util.NewPeriod(time.Minute)
 
-	next := timeperiod.From(internal.GetTime()).Next().Time()
+	next := timeperiod.From(util.GetTime()).Next().Time()
 
 	// We need to run on the top of the time period (or as close as possible). Based on now we
 	// set the next run to be the top of the next minute. Technically this means there can be a
@@ -204,7 +204,7 @@ func (t *Cache) run() {
 			return
 		case <-t.ticker.C:
 			// This fires every second
-			now := internal.GetTime()
+			now := util.GetTime()
 			if now.Equal(next) || now.After(next) {
 				go t.update(next)
 				next = timeperiod.From(now).Next().Time()
@@ -272,7 +272,7 @@ func (t *keytabWrapper) update(now time.Time) {
 
 		t.nextUpdate = nowPeriod.Next().Time()
 		t.err = nil
-		t.keytab = &libtokenmachine.Keytab{
+		t.keytab = &core.Keytab{
 			Principal:  "HTTP/" + t.principal,
 			Base64File: base64File,
 			Exp:        nowPeriod.Time().Unix() + int64(t.timePeriod.Duration.Seconds()),
@@ -298,11 +298,11 @@ func (t *keytabWrapper) getChar(b byte) byte {
 }
 
 // GetKeytab Returns Keytab if keytab exist.
-func (t *Cache) GetKeytab(principal string) (*libtokenmachine.Keytab, error) {
+func (t *Cache) GetKeytab(principal string) (*core.Keytab, error) {
 
 	if principal == "" {
 		zap.L().Debug("principal is empty")
-		return nil, libtokenmachine.ErrNotFound
+		return nil, core.ErrNotFound
 	}
 
 	t.mutex.RLock()
@@ -317,17 +317,17 @@ func (t *Cache) GetKeytab(principal string) (*libtokenmachine.Keytab, error) {
 		if wrapper.keytab == nil {
 			if wrapper.err == nil {
 				zap.L().Debug(fmt.Sprintf("Keytab %s has not been processed yet", principal))
-				return nil, libtokenmachine.ErrNotFound
+				return nil, core.ErrNotFound
 			}
 			zap.L().Debug(fmt.Sprintf("Keytab %s not generated due to error; err->%s", principal, wrapper.err.Error()))
-			return nil, libtokenmachine.ErrServerFail
+			return nil, core.ErrServerFail
 		}
 
 		return wrapper.keytab.Copy(), nil
 	}
 
 	zap.L().Debug(fmt.Sprintf("Keytab %s does not exist", principal))
-	return nil, libtokenmachine.ErrNotFound
+	return nil, core.ErrNotFound
 }
 
 func (t *keytabWrapper) newKeytab(password string) (string, error) {

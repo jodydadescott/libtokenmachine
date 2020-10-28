@@ -29,8 +29,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jodydadescott/libtokenmachine"
-	"github.com/jodydadescott/libtokenmachine/internal"
+	"github.com/jodydadescott/libtokenmachine/core"
 	"go.uber.org/zap"
 )
 
@@ -51,7 +50,7 @@ type Config struct {
 type Cache struct {
 	httpClient *http.Client
 	mutex      sync.RWMutex
-	internal   map[string]*internal.PublicKey
+	internal   map[string]*PublicKey
 	closed     chan struct{}
 	ticker     *time.Ticker
 	wg         sync.WaitGroup
@@ -79,7 +78,7 @@ func (config *Config) Build() (*Cache, error) {
 	}
 
 	t := &Cache{
-		internal: make(map[string]*internal.PublicKey),
+		internal: make(map[string]*PublicKey),
 		closed:   make(chan struct{}),
 		ticker:   time.NewTicker(cacheRefreshInterval),
 		wg:       sync.WaitGroup{},
@@ -139,7 +138,7 @@ func (t *Cache) processCache() {
 
 // GetKey Returns PublicKey from cache if found. If not gets PublicKey from
 // validated issuer, stores in cache and returns copy
-func (t *Cache) GetKey(iss, kid string) (*internal.PublicKey, error) {
+func (t *Cache) GetKey(iss, kid string) (*PublicKey, error) {
 
 	key := iss + ":" + kid
 
@@ -195,7 +194,7 @@ func (t *Cache) GetKey(iss, kid string) (*internal.PublicKey, error) {
 
 	}
 
-	return nil, libtokenmachine.ErrNotFound
+	return nil, core.ErrNotFound
 }
 
 func (t *Cache) getOpenIDConfiguration(fqdn string) (*openIDConfiguration, error) {
@@ -304,7 +303,7 @@ func (t *jwks) json() string {
 	return string(e)
 }
 
-func newKey(jwk *jwk) (*internal.PublicKey, error) {
+func newKey(jwk *jwk) (*PublicKey, error) {
 
 	if jwk.Kty == "" {
 		return nil, fmt.Errorf("Kty is empty")
@@ -320,7 +319,7 @@ func newKey(jwk *jwk) (*internal.PublicKey, error) {
 	return nil, fmt.Errorf("jwk kty type %s not supported", jwk.Kty)
 }
 
-func newKeyEC(jwk *jwk) (*internal.PublicKey, error) {
+func newKeyEC(jwk *jwk) (*PublicKey, error) {
 
 	var curve elliptic.Curve
 
@@ -349,7 +348,7 @@ func newKeyEC(jwk *jwk) (*internal.PublicKey, error) {
 		return nil, err
 	}
 
-	return &internal.PublicKey{
+	return &PublicKey{
 		EcdsaPublicKey: &ecdsa.PublicKey{
 			Curve: curve,
 			X:     new(big.Int).SetBytes(byteX),

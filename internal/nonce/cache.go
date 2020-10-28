@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jodydadescott/libtokenmachine"
+	"github.com/jodydadescott/libtokenmachine/core"
 	"go.uber.org/zap"
 )
 
@@ -47,7 +47,7 @@ type Config struct {
 // and the nonce can be validated that it originated with us.
 type Cache struct {
 	mutex      sync.RWMutex
-	internal   map[string]*libtokenmachine.Nonce
+	internal   map[string]*core.Nonce
 	closed     chan struct{}
 	ticker     *time.Ticker
 	wg         sync.WaitGroup
@@ -72,7 +72,7 @@ func (config *Config) Build() (*Cache, error) {
 	}
 
 	t := &Cache{
-		internal: make(map[string]*libtokenmachine.Nonce),
+		internal: make(map[string]*core.Nonce),
 		closed:   make(chan struct{}),
 		ticker:   time.NewTicker(cacheRefreshInterval),
 		wg:       sync.WaitGroup{},
@@ -127,14 +127,14 @@ func (t *Cache) processCache() {
 }
 
 // NewNonce Returns a new nonce
-func (t *Cache) NewNonce() (*libtokenmachine.Nonce, error) {
+func (t *Cache) NewNonce() (*core.Nonce, error) {
 
 	b := make([]byte, 64)
 	for i := range b {
 		b[i] = charset[t.seededRand.Intn(len(charset))]
 	}
 
-	nonce := &libtokenmachine.Nonce{
+	nonce := &core.Nonce{
 		Exp:   time.Now().Unix() + t.lifetime,
 		Value: string(b),
 	}
@@ -149,18 +149,18 @@ func (t *Cache) NewNonce() (*libtokenmachine.Nonce, error) {
 }
 
 // GetNonce returns nonce if found and not expired
-func (t *Cache) GetNonce(key string) (*libtokenmachine.Nonce, error) {
+func (t *Cache) GetNonce(key string) (*core.Nonce, error) {
 
 	if key == "" {
 		zap.L().Warn("request for empty nonce")
-		return nil, libtokenmachine.ErrNotFound
+		return nil, core.ErrNotFound
 	}
 
 	nonce, exist := t.internal[key]
 	if exist {
 		if time.Now().Unix() > nonce.Exp {
 			zap.L().Debug(fmt.Sprintf("Nonce expired; nonce key:%s", key))
-			return nil, libtokenmachine.ErrExpired
+			return nil, core.ErrExpired
 		}
 		// Func is exported. Return clone to untrusted outsiders
 		zap.L().Debug(fmt.Sprintf("Nonce found and not expired; nonce key:%s", key))
@@ -168,7 +168,7 @@ func (t *Cache) GetNonce(key string) (*libtokenmachine.Nonce, error) {
 	}
 
 	zap.L().Debug(fmt.Sprintf("Nonce not found; nonce key:%s", key))
-	return nil, libtokenmachine.ErrNotFound
+	return nil, core.ErrNotFound
 
 }
 

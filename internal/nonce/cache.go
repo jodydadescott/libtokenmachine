@@ -36,7 +36,8 @@ const (
 
 // Config Config
 type Config struct {
-	CacheRefreshInterval, Lifetime time.Duration
+	CacheRefreshInterval time.Duration
+	Lifetime             int64
 }
 
 // Cache Manages nonces. For our purposes a nonce is defined as a random
@@ -68,7 +69,7 @@ func (config *Config) Build() (*Cache, error) {
 	}
 
 	if config.Lifetime > 0 {
-		lifetime = config.Lifetime
+		lifetime = time.Duration(config.Lifetime) * time.Second
 	}
 
 	t := &Cache{

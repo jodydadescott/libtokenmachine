@@ -14,16 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package libtokenmachine
+package helper
 
 import (
-	"context"
+	"github.com/jodydadescott/libtokenmachine"
+	"github.com/jodydadescott/libtokenmachine/internal"
 )
 
-// LibTokenMachine LibTokenMachine
-type LibTokenMachine interface {
-	Shutdown()
-	GetNonce(ctx context.Context, tokenString string) (*Nonce, error)
-	GetKeytab(ctx context.Context, tokenString, principal string) (*Keytab, error)
-	GetSecret(ctx context.Context, tokenString, name string) (*Secret, error)
+// NewInstance returns new instance of LibTokenMachine
+func NewInstance(config *libtokenmachine.Config) (libtokenmachine.LibTokenMachine, error) {
+	return internal.NewInstance(config)
 }

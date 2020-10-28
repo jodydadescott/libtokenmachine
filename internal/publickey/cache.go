@@ -29,7 +29,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jodydadescott/libtokenmachine/core"
+	"github.com/jodydadescott/libtokenmachine"
 	"go.uber.org/zap"
 )
 
@@ -194,7 +194,7 @@ func (t *Cache) GetKey(iss, kid string) (*PublicKey, error) {
 
 	}
 
-	return nil, core.ErrNotFound
+	return nil, libtokenmachine.ErrNotFound
 }
 
 func (t *Cache) getOpenIDConfiguration(fqdn string) (*openIDConfiguration, error) {

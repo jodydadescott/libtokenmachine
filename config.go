@@ -16,14 +16,12 @@ limitations under the License.
 
 package libtokenmachine
 
-import (
-	"context"
-)
-
-// LibTokenMachine LibTokenMachine
-type LibTokenMachine interface {
-	Shutdown()
-	GetNonce(ctx context.Context, tokenString string) (*Nonce, error)
-	GetKeytab(ctx context.Context, tokenString, principal string) (*Keytab, error)
-	GetSecret(ctx context.Context, tokenString, name string) (*Secret, error)
+// Config ...
+type Config struct {
+	Policy         string    // OPA/Rego policy that will be used to authorize request
+	NonceLifetime  int64     // Lifetime of Nonce (default is 1 minute)
+	SecretSecrets  []*Secret // Secrets that will be served
+	KeytabKeytabs  []*Keytab // Keytabs that will be served
+	KeytabLifetime int64     // The default lifetime of a keytab
+	SecretLifetime int64
 }

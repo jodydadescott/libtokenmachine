@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jodydadescott/libtokenmachine/core"
+	"github.com/jodydadescott/libtokenmachine"
 	"github.com/open-policy-agent/opa/rego"
 	"go.uber.org/zap"
 )
@@ -69,23 +69,23 @@ func (t *Policy) AuthGetNonce(ctx context.Context, claims map[string]interface{}
 
 	if err != nil {
 		zap.L().Error(fmt.Sprintf("Unexpected error on Rego policy execution; err->%s", err))
-		return core.ErrServerFail
+		return libtokenmachine.ErrServerFail
 	}
 
 	if len(results) == 0 {
 		zap.L().Error(fmt.Sprintf("Unexpected error on Rego policy execution; results are empty"))
-		return core.ErrServerFail
+		return libtokenmachine.ErrServerFail
 	}
 
 	if auth, ok := results[0].Bindings["auth_get_nonce"].(bool); ok {
 		if auth {
 			return nil
 		}
-		return core.ErrDenied
+		return libtokenmachine.ErrDenied
 	}
 
 	zap.L().Error(fmt.Sprintf("Unexpected error on Rego policy execution; unexpected result type"))
-	return core.ErrServerFail
+	return libtokenmachine.ErrServerFail
 }
 
 // AuthGetKeytab Auth that claims, nonce and principals are allowed to get requested keytab
@@ -101,23 +101,23 @@ func (t *Policy) AuthGetKeytab(ctx context.Context, claims map[string]interface{
 
 	if err != nil {
 		zap.L().Error(fmt.Sprintf("Unexpected error on Rego policy execution; err->%s", err))
-		return core.ErrServerFail
+		return libtokenmachine.ErrServerFail
 	}
 
 	if len(results) == 0 {
 		zap.L().Error(fmt.Sprintf("Unexpected error on Rego policy execution; results are empty"))
-		return core.ErrServerFail
+		return libtokenmachine.ErrServerFail
 	}
 
 	if auth, ok := results[0].Bindings["auth_get_keytab"].(bool); ok {
 		if auth {
 			return nil
 		}
-		return core.ErrDenied
+		return libtokenmachine.ErrDenied
 	}
 
 	zap.L().Error(fmt.Sprintf("Unexpected error on Rego policy execution; unexpected result type"))
-	return core.ErrServerFail
+	return libtokenmachine.ErrServerFail
 }
 
 // AuthGetSecret Auth request for secret
@@ -133,21 +133,21 @@ func (t *Policy) AuthGetSecret(ctx context.Context, claims map[string]interface{
 
 	if err != nil {
 		zap.L().Error(fmt.Sprintf("Unexpected error on Rego policy execution; err->%s", err))
-		return core.ErrServerFail
+		return libtokenmachine.ErrServerFail
 	}
 
 	if len(results) == 0 {
 		zap.L().Error(fmt.Sprintf("Unexpected error on Rego policy execution; results are empty"))
-		return core.ErrServerFail
+		return libtokenmachine.ErrServerFail
 	}
 
 	if auth, ok := results[0].Bindings["auth_get_secret"].(bool); ok {
 		if auth {
 			return nil
 		}
-		return core.ErrDenied
+		return libtokenmachine.ErrDenied
 	}
 
 	zap.L().Error(fmt.Sprintf("Unexpected error on Rego policy execution; unexpected result type"))
-	return core.ErrServerFail
+	return libtokenmachine.ErrServerFail
 }

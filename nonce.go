@@ -17,13 +17,26 @@ limitations under the License.
 package libtokenmachine
 
 import (
-	"context"
+	"encoding/json"
+
+	"github.com/jinzhu/copier"
 )
 
-// LibTokenMachine LibTokenMachine
-type LibTokenMachine interface {
-	Shutdown()
-	GetNonce(ctx context.Context, tokenString string) (*Nonce, error)
-	GetKeytab(ctx context.Context, tokenString, principal string) (*Keytab, error)
-	GetSecret(ctx context.Context, tokenString, name string) (*Secret, error)
+// Nonce holds one time expiring secret
+type Nonce struct {
+	Exp   int64  `json:"exp,omitempty" yaml:"exp,omitempty"`
+	Value string `json:"value,omitempty" yaml:"value,omitempty"`
+}
+
+// JSON Return JSON String representation
+func (t *Nonce) JSON() string {
+	j, _ := json.Marshal(t)
+	return string(j)
+}
+
+// Copy return copy
+func (t *Nonce) Copy() *Nonce {
+	clone := &Nonce{}
+	copier.Copy(&clone, &t)
+	return clone
 }

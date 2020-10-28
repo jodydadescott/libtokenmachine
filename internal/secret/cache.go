@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jodydadescott/libtokenmachine/core"
+	"github.com/jodydadescott/libtokenmachine"
 	"github.com/jodydadescott/libtokenmachine/internal/util"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
@@ -39,7 +39,7 @@ const (
 
 // Config Config
 type Config struct {
-	Secrets  []*core.Secret
+	Secrets  []*libtokenmachine.Secret
 	Lifetime int64
 }
 
@@ -84,7 +84,7 @@ func (config *Config) Build() (*Cache, error) {
 	return t, nil
 }
 
-func (t *Cache) loadSecrets(secrets []*core.Secret) error {
+func (t *Cache) loadSecrets(secrets []*libtokenmachine.Secret) error {
 
 	if secrets == nil || len(secrets) <= 0 {
 		zap.L().Warn("No secrets to load?")
@@ -102,7 +102,7 @@ func (t *Cache) loadSecrets(secrets []*core.Secret) error {
 	return nil
 }
 
-func (t *Cache) addSecret(secret *core.Secret) error {
+func (t *Cache) addSecret(secret *libtokenmachine.Secret) error {
 
 	// Must have map locked!
 
@@ -136,11 +136,11 @@ func (t *Cache) addSecret(secret *core.Secret) error {
 }
 
 // GetSecret Returns secret if found and authorized
-func (t *Cache) GetSecret(name string) (*core.Secret, error) {
+func (t *Cache) GetSecret(name string) (*libtokenmachine.Secret, error) {
 
 	if name == "" {
 		zap.L().Debug("name is empty")
-		return nil, core.ErrNotFound
+		return nil, libtokenmachine.ErrNotFound
 	}
 
 	t.mutex.RLock()
@@ -153,7 +153,7 @@ func (t *Cache) GetSecret(name string) (*core.Secret, error) {
 
 	if !ok {
 		zap.L().Debug(fmt.Sprintf("Secret with name %s not found", name))
-		return nil, core.ErrNotFound
+		return nil, libtokenmachine.ErrNotFound
 	}
 
 	wrapper.mutex.Lock()
@@ -173,7 +173,7 @@ func (t *Cache) GetSecret(name string) (*core.Secret, error) {
 		return nil, err
 	}
 
-	result := &core.Secret{
+	result := &libtokenmachine.Secret{
 		Exp:    nowPeriod.Time().Unix(),
 		Secret: nowsecret,
 	}
@@ -210,7 +210,7 @@ func (t *secretWrapper) getSecretString(now time.Time) (string, error) {
 
 	if err != nil {
 		zap.L().Error(fmt.Sprintf("Unexpected error %s", err))
-		return "", core.ErrServerFail
+		return "", libtokenmachine.ErrServerFail
 	}
 
 	hash := sha256.Sum256([]byte(otp + t.seed))

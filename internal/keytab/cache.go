@@ -31,7 +31,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jodydadescott/libtokenmachine/core"
+	"github.com/jodydadescott/libtokenmachine"
 	"github.com/jodydadescott/libtokenmachine/internal/util"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
@@ -54,7 +54,7 @@ var (
 //
 // TimePeriod: Time Period for Keytab Renewals
 type Config struct {
-	Keytabs  []*core.Keytab
+	Keytabs  []*libtokenmachine.Keytab
 	Lifetime int64
 }
 
@@ -99,7 +99,7 @@ type keytabWrapper struct {
 	mutex           sync.RWMutex
 	nextUpdate      time.Time
 	principal, seed string
-	keytab          *core.Keytab
+	keytab          *libtokenmachine.Keytab
 	err             error
 	timePeriod      *util.TimePeriod
 }
@@ -272,7 +272,7 @@ func (t *keytabWrapper) update(now time.Time) {
 
 		t.nextUpdate = nowPeriod.Next().Time()
 		t.err = nil
-		t.keytab = &core.Keytab{
+		t.keytab = &libtokenmachine.Keytab{
 			Principal:  "HTTP/" + t.principal,
 			Base64File: base64File,
 			Exp:        nowPeriod.Time().Unix() + int64(t.timePeriod.Duration.Seconds()),
@@ -298,11 +298,11 @@ func (t *keytabWrapper) getChar(b byte) byte {
 }
 
 // GetKeytab Returns Keytab if keytab exist.
-func (t *Cache) GetKeytab(principal string) (*core.Keytab, error) {
+func (t *Cache) GetKeytab(principal string) (*libtokenmachine.Keytab, error) {
 
 	if principal == "" {
 		zap.L().Debug("principal is empty")
-		return nil, core.ErrNotFound
+		return nil, libtokenmachine.ErrNotFound
 	}
 
 	t.mutex.RLock()
@@ -317,17 +317,17 @@ func (t *Cache) GetKeytab(principal string) (*core.Keytab, error) {
 		if wrapper.keytab == nil {
 			if wrapper.err == nil {
 				zap.L().Debug(fmt.Sprintf("Keytab %s has not been processed yet", principal))
-				return nil, core.ErrNotFound
+				return nil, libtokenmachine.ErrNotFound
 			}
 			zap.L().Debug(fmt.Sprintf("Keytab %s not generated due to error; err->%s", principal, wrapper.err.Error()))
-			return nil, core.ErrServerFail
+			return nil, libtokenmachine.ErrServerFail
 		}
 
 		return wrapper.keytab.Copy(), nil
 	}
 
 	zap.L().Debug(fmt.Sprintf("Keytab %s does not exist", principal))
-	return nil, core.ErrNotFound
+	return nil, libtokenmachine.ErrNotFound
 }
 
 func (t *keytabWrapper) newKeytab(password string) (string, error) {

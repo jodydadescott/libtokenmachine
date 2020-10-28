@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jodydadescott/libtokenmachine/core"
+	"github.com/jodydadescott/libtokenmachine"
 	"github.com/jodydadescott/libtokenmachine/internal/keytab"
 	"github.com/jodydadescott/libtokenmachine/internal/nonce"
 	"github.com/jodydadescott/libtokenmachine/internal/policy"
@@ -41,7 +41,7 @@ type Cache struct {
 }
 
 // NewInstance ...
-func NewInstance(config *core.Config) (*Cache, error) {
+func NewInstance(config *libtokenmachine.Config) (*Cache, error) {
 
 	zap.L().Info(fmt.Sprintf("Starting"))
 
@@ -128,7 +128,7 @@ func (t *Cache) Shutdown() {
 }
 
 // GetNonce returns Nonce if provided token is authorized
-func (t *Cache) GetNonce(ctx context.Context, tokenString string) (*core.Nonce, error) {
+func (t *Cache) GetNonce(ctx context.Context, tokenString string) (*libtokenmachine.Nonce, error) {
 
 	token, err := t.token.ParseToken(tokenString)
 	if err != nil {
@@ -154,7 +154,7 @@ func (t *Cache) GetNonce(ctx context.Context, tokenString string) (*core.Nonce, 
 }
 
 // GetKeytab returns Keytab if provided token is authorized
-func (t *Cache) GetKeytab(ctx context.Context, tokenString, principal string) (*core.Keytab, error) {
+func (t *Cache) GetKeytab(ctx context.Context, tokenString, principal string) (*libtokenmachine.Keytab, error) {
 
 	token, err := t.token.ParseToken(tokenString)
 	if err != nil {
@@ -186,7 +186,7 @@ func (t *Cache) GetKeytab(ctx context.Context, tokenString, principal string) (*
 }
 
 // GetSecret returns Secret if provided token is authorized
-func (t *Cache) GetSecret(ctx context.Context, tokenString, name string) (*core.Secret, error) {
+func (t *Cache) GetSecret(ctx context.Context, tokenString, name string) (*libtokenmachine.Secret, error) {
 
 	token, err := t.token.ParseToken(tokenString)
 	if err != nil {

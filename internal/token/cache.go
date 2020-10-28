@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/jodydadescott/libtokenmachine/core"
+	"github.com/jodydadescott/libtokenmachine"
 	"github.com/jodydadescott/libtokenmachine/internal/publickey"
 	"go.uber.org/zap"
 )
@@ -51,7 +51,7 @@ type Config struct {
 // with the audience (aud) field set to the nonce value. When then token is parsed
 type Cache struct {
 	tokenMapMutex       sync.RWMutex
-	tokenMap            map[string]*core.Token
+	tokenMap            map[string]*libtokenmachine.Token
 	closed              chan struct{}
 	ticker              *time.Ticker
 	wg                  sync.WaitGroup
@@ -72,7 +72,7 @@ func (config *Config) Build(publicKeyCache PublicKeyCache) (*Cache, error) {
 	}
 
 	t := &Cache{
-		tokenMap:       make(map[string]*core.Token),
+		tokenMap:       make(map[string]*libtokenmachine.Token),
 		closed:         make(chan struct{}),
 		ticker:         time.NewTicker(cacheRefreshInterval),
 		wg:             sync.WaitGroup{},
@@ -98,24 +98,24 @@ func (t *Cache) run() {
 	}
 }
 
-func (t *Cache) mapGetToken(key string) *core.Token {
+func (t *Cache) mapGetToken(key string) *libtokenmachine.Token {
 	t.tokenMapMutex.RLock()
 	defer t.tokenMapMutex.RUnlock()
 	return t.tokenMap[key]
 }
 
-func (t *Cache) mapPutToken(key string, entity *core.Token) {
+func (t *Cache) mapPutToken(key string, entity *libtokenmachine.Token) {
 	t.tokenMapMutex.Lock()
 	defer t.tokenMapMutex.Unlock()
 	t.tokenMap[key] = entity
 }
 
 // ParseToken ...
-func (t *Cache) ParseToken(tokenString string) (*core.Token, error) {
+func (t *Cache) ParseToken(tokenString string) (*libtokenmachine.Token, error) {
 
 	if tokenString == "" {
 		zap.L().Debug("tokenString is empty")
-		return nil, core.ErrTokenInvalid
+		return nil, libtokenmachine.ErrTokenInvalid
 	}
 
 	token := t.mapGetToken(tokenString)
@@ -125,14 +125,14 @@ func (t *Cache) ParseToken(tokenString string) (*core.Token, error) {
 
 		if token.Exp > time.Now().Unix() {
 			zap.L().Debug(fmt.Sprintf("Token %s is expired", tokenString))
-			return nil, core.ErrExpired
+			return nil, libtokenmachine.ErrExpired
 		}
 
 		return token.Copy(), nil
 	}
 
 	var err error
-	token, err = core.ParseToken(tokenString)
+	token, err = libtokenmachine.ParseToken(tokenString)
 	if err != nil {
 		zap.L().Debug(fmt.Sprintf("Unable to parse token %s", tokenString))
 		return nil, err
@@ -142,33 +142,33 @@ func (t *Cache) ParseToken(tokenString string) (*core.Token, error) {
 
 	if token.Alg == "" {
 		zap.L().Debug(fmt.Sprintf("Token %s is missing required field alg", tokenString))
-		return nil, core.ErrTokenInvalid
+		return nil, libtokenmachine.ErrTokenInvalid
 	}
 
 	if token.Kid == "" {
 		zap.L().Debug(fmt.Sprintf("Token %s is missing required field kid", tokenString))
-		return nil, core.ErrTokenInvalid
+		return nil, libtokenmachine.ErrTokenInvalid
 	}
 
 	if token.Typ == "" {
 		zap.L().Debug(fmt.Sprintf("Token %s is missing required field typ", tokenString))
-		return nil, core.ErrTokenInvalid
+		return nil, libtokenmachine.ErrTokenInvalid
 	}
 
 	if token.Iss == "" {
 		zap.L().Debug(fmt.Sprintf("Token %s is missing required field iss", tokenString))
-		return nil, core.ErrTokenInvalid
+		return nil, libtokenmachine.ErrTokenInvalid
 	}
 
 	if !strings.HasPrefix(token.Iss, "http") {
 		zap.L().Debug(fmt.Sprintf("Token %s has field iss but value %s is not expected", tokenString, token.Iss))
-		return nil, core.ErrTokenInvalid
+		return nil, libtokenmachine.ErrTokenInvalid
 	}
 
 	if !t.permitPublicKeyHTTP {
 		if !strings.HasPrefix(token.Iss, "https") {
 			zap.L().Debug(fmt.Sprintf("Token %s has field iss but value %s is not permitted as https is required", tokenString, token.Iss))
-			return nil, core.ErrTokenInvalid
+			return nil, libtokenmachine.ErrTokenInvalid
 		}
 	}
 
@@ -211,13 +211,13 @@ func (t *Cache) ParseToken(tokenString string) (*core.Token, error) {
 			// Slight drift in clock. We will be the judge of that
 		} else {
 			zap.L().Debug(fmt.Sprintf("Unable to verify signature for token %s; error=%s", tokenString, err.Error()))
-			return nil, core.ErrTokenInvalid
+			return nil, libtokenmachine.ErrTokenInvalid
 		}
 	}
 
 	if time.Now().Unix() > token.Exp {
 		zap.L().Debug(fmt.Sprintf("Token %s is expired", tokenString))
-		return nil, core.ErrExpired
+		return nil, libtokenmachine.ErrExpired
 	}
 
 	t.mapPutToken(tokenString, token)

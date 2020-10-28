@@ -17,13 +17,22 @@ limitations under the License.
 package libtokenmachine
 
 import (
-	"context"
+	"errors"
 )
 
-// LibTokenMachine LibTokenMachine
-type LibTokenMachine interface {
-	Shutdown()
-	GetNonce(ctx context.Context, tokenString string) (*Nonce, error)
-	GetKeytab(ctx context.Context, tokenString, principal string) (*Keytab, error)
-	GetSecret(ctx context.Context, tokenString, name string) (*Secret, error)
-}
+var (
+	// ErrNotFound Entity not found
+	ErrNotFound error = errors.New("Entity not found")
+
+	// ErrExpired Entity expired
+	ErrExpired error = errors.New("Entity expired")
+
+	// ErrDenied Denied
+	ErrDenied error = errors.New("Denied")
+
+	// ErrServerFail Policy engine returned unexpected error
+	ErrServerFail error = errors.New("Internal server error")
+
+	// ErrTokenInvalid Failed
+	ErrTokenInvalid error = errors.New("Token is invalid")
+)

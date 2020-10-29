@@ -357,6 +357,7 @@ func newKeyEC(jwk *jwk) (*PublicKey, error) {
 		},
 		Exp: time.Now().Unix() + int64(defaultKeyLifetime),
 		Kid: jwk.Kid,
+		Kty: jwk.Kty,
 	}, nil
 
 }

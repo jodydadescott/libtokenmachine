@@ -39,7 +39,11 @@ import (
 )
 
 var (
-	keytabRegex     = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	keytabRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+)
+
+const (
+	tickRate        = time.Duration(10) * time.Second
 	defaultLifetime = time.Duration(5) * time.Minute
 
 	passwordCharset = "abcdefghijklmnopqrstuvwxyz" +
@@ -167,8 +171,8 @@ func (t *Cache) init(config *Config) error {
 		}
 
 		// Lifetime less then a minute requires to much resources and does not make much sense
-		if lifetime < time.Minute {
-			return fmt.Errorf(fmt.Sprintf("Keytab %s lifetime is less then one minute. Lifetime must be one minute or greater", keytab.Principal))
+		if tickRate < lifetime {
+			return fmt.Errorf(fmt.Sprintf("Keytab %s lifetime of %s less then tickrate of %s", keytab.Principal, lifetime, tickRate))
 		}
 
 		t.internal[keytab.Principal] = &keytabWrapper{
@@ -187,15 +191,9 @@ func (t *Cache) run() {
 
 	t.wg.Add(1)
 
-	timeperiod := util.NewPeriod(time.Minute)
-
+	// TimePeriod based on tick rate
+	timeperiod := util.NewPeriod(tickRate)
 	next := timeperiod.From(util.GetTime()).Next().Time()
-
-	// We need to run on the top of the time period (or as close as possible). Based on now we
-	// set the next run to be the top of the next minute. Technically this means there can be a
-	// 59 second delay before the first run based on the time the server is started. We run a
-	// ticker every second and check to see if now is equal to or greater then next and if it
-	// is we run our jobs and update the next
 
 	for {
 		select {
@@ -285,7 +283,7 @@ func (t *keytabWrapper) update(now time.Time) {
 		return
 	}
 
-	zap.L().Debug(fmt.Sprintf("Keytab %s NOT ready for new keytab", t.principal))
+	// zap.L().Debug(fmt.Sprintf("Keytab %s NOT ready for new keytab", t.principal))
 
 }
 

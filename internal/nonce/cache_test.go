@@ -26,7 +26,7 @@ func Test1(t *testing.T) {
 	var err error
 
 	config := &Config{
-		Lifetime: 5,
+		Lifetime: time.Duration(4) * time.Second,
 	}
 
 	nonces, err := config.Build()

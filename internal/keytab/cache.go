@@ -55,7 +55,7 @@ var (
 // TimePeriod: Time Period for Keytab Renewals
 type Config struct {
 	Keytabs  []*libtokenmachine.Keytab
-	Lifetime int64
+	Lifetime time.Duration
 }
 
 // Cache holds and manages Kerberos Keytabs. Keytabs are generated or
@@ -112,7 +112,7 @@ func (config *Config) Build() (*Cache, error) {
 	lifetime := defaultLifetime
 
 	if config.Lifetime > 0 {
-		lifetime = time.Duration(config.Lifetime) * time.Second
+		lifetime = config.Lifetime
 	}
 
 	if lifetime < time.Minute {

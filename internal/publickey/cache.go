@@ -36,14 +36,14 @@ import (
 const (
 	defaultCacheRefreshInterval = time.Duration(5) * time.Minute
 	defaultIdleConnections      = 4
-	defaultRequestTimeout       = 60
+	defaultRequestTimeout       = time.Duration(60) * time.Second
 	defaultKeyLifetime          = 86400
 )
 
 // Config The config
 type Config struct {
-	CacheRefreshInterval            time.Duration
-	RequestTimeout, IdleConnections int
+	CacheRefreshInterval, RequestTimeout time.Duration
+	IdleConnections                      int
 }
 
 // Cache ...
@@ -86,7 +86,7 @@ func (config *Config) Build() (*Cache, error) {
 			Transport: &http.Transport{
 				MaxIdleConnsPerHost: idleConnections,
 			},
-			Timeout: time.Duration(requestTimeout) * time.Second,
+			Timeout: requestTimeout,
 		},
 	}
 

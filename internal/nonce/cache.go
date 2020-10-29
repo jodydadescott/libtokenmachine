@@ -36,8 +36,7 @@ const (
 
 // Config Config
 type Config struct {
-	CacheRefreshInterval time.Duration
-	Lifetime             int64
+	CacheRefreshInterval, Lifetime time.Duration
 }
 
 // Cache Manages nonces. For our purposes a nonce is defined as a random
@@ -53,7 +52,7 @@ type Cache struct {
 	ticker     *time.Ticker
 	wg         sync.WaitGroup
 	seededRand *rand.Rand
-	lifetime   int64
+	lifetime   time.Duration
 }
 
 // Build Returns a new Cache
@@ -69,7 +68,7 @@ func (config *Config) Build() (*Cache, error) {
 	}
 
 	if config.Lifetime > 0 {
-		lifetime = time.Duration(config.Lifetime) * time.Second
+		lifetime = config.Lifetime
 	}
 
 	t := &Cache{
@@ -77,7 +76,7 @@ func (config *Config) Build() (*Cache, error) {
 		closed:   make(chan struct{}),
 		ticker:   time.NewTicker(cacheRefreshInterval),
 		wg:       sync.WaitGroup{},
-		lifetime: int64(lifetime),
+		lifetime: lifetime,
 		seededRand: rand.New(
 			rand.NewSource(time.Now().Unix())),
 	}
@@ -90,7 +89,7 @@ func (config *Config) Build() (*Cache, error) {
 				t.wg.Done()
 				return
 			case <-t.ticker.C:
-				t.processCache()
+				t.cleanup()
 
 			}
 		}
@@ -99,9 +98,9 @@ func (config *Config) Build() (*Cache, error) {
 	return t, nil
 }
 
-func (t *Cache) processCache() {
+func (t *Cache) cleanup() {
 
-	zap.L().Debug("Processing cache start")
+	zap.L().Debug("Running cleanup")
 
 	var removes []string
 	t.mutex.Lock()
@@ -123,7 +122,7 @@ func (t *Cache) processCache() {
 		}
 	}
 
-	zap.L().Debug("Processing cache completed")
+	zap.L().Debug("Cleanup completed")
 
 }
 
@@ -136,7 +135,7 @@ func (t *Cache) NewNonce() (*libtokenmachine.Nonce, error) {
 	}
 
 	nonce := &libtokenmachine.Nonce{
-		Exp:   time.Now().Unix() + t.lifetime,
+		Exp:   time.Now().Unix() + int64(t.lifetime.Seconds()),
 		Value: string(b),
 	}
 
@@ -153,7 +152,7 @@ func (t *Cache) NewNonce() (*libtokenmachine.Nonce, error) {
 func (t *Cache) GetNonce(key string) (*libtokenmachine.Nonce, error) {
 
 	if key == "" {
-		zap.L().Warn("request for empty nonce")
+		zap.L().Debug("Request for empty nonce")
 		return nil, libtokenmachine.ErrNotFound
 	}
 

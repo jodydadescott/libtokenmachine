@@ -40,7 +40,7 @@ const (
 // Config Config
 type Config struct {
 	Secrets  []*libtokenmachine.Secret
-	Lifetime int64
+	Lifetime time.Duration
 }
 
 type secretWrapper struct {
@@ -64,7 +64,7 @@ func (config *Config) Build() (*Cache, error) {
 	lifetime := defaultLifetime
 
 	if config.Lifetime > 0 {
-		lifetime = time.Duration(config.Lifetime) * time.Second
+		lifetime = config.Lifetime
 	}
 
 	if lifetime < time.Minute {

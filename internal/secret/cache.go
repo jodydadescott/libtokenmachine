@@ -159,7 +159,7 @@ func (t *Cache) GetSecret(name string) (*libtokenmachine.Secret, error) {
 	wrapper.mutex.Lock()
 	defer wrapper.mutex.Unlock()
 
-	now := getTime()
+	now := util.GetTime()
 
 	var err error
 	var nowsecret string
@@ -248,12 +248,6 @@ func int31n(n int, input int64) int32 {
 	return int32(prod >> 32)
 }
 
-func getTime() time.Time {
-	// If running multiple instance the time must be the same so we statically use UTC
-	return time.Now().In(time.UTC)
-}
-
-// Shutdown Server
+// Shutdown Server. Nothing to do but left to preserve pattern and future
 func (t *Cache) Shutdown() {
-	zap.L().Debug("Stopping")
 }

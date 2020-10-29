@@ -81,21 +81,22 @@ func (config *Config) Build() (*Cache, error) {
 			rand.NewSource(time.Now().Unix())),
 	}
 
-	go func() {
-		t.wg.Add(1)
-		for {
-			select {
-			case <-t.closed:
-				t.wg.Done()
-				return
-			case <-t.ticker.C:
-				t.cleanup()
-
-			}
-		}
-	}()
-
+	go t.run()
 	return t, nil
+}
+
+func (t *Cache) run() {
+	t.wg.Add(1)
+	for {
+		select {
+		case <-t.closed:
+			t.wg.Done()
+			return
+		case <-t.ticker.C:
+			t.cleanup()
+
+		}
+	}
 }
 
 func (t *Cache) cleanup() {

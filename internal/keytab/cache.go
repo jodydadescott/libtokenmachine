@@ -54,8 +54,9 @@ var (
 //
 // TimePeriod: Time Period for Keytab Renewals
 type Config struct {
-	Keytabs  []*libtokenmachine.Keytab
-	Lifetime time.Duration
+	Keytabs           []*libtokenmachine.Keytab
+	Lifetime          time.Duration
+	LogHashedPassword bool // useful for debugging
 }
 
 // Cache holds and manages Kerberos Keytabs. Keytabs are generated or
@@ -184,7 +185,6 @@ func (t *Cache) init(config *Config) error {
 
 func (t *Cache) run() {
 
-	zap.L().Debug("Starting")
 	t.wg.Add(1)
 
 	timeperiod := util.NewPeriod(time.Minute)
@@ -215,11 +215,16 @@ func (t *Cache) run() {
 }
 
 func (t *Cache) update(now time.Time) {
+
+	zap.L().Debug("Running updated")
+
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
 	for _, wrapper := range t.internal {
 		go wrapper.update(now)
 	}
+
+	zap.L().Debug("Update completed")
 }
 
 func (t *keytabWrapper) update(now time.Time) {
@@ -266,10 +271,6 @@ func (t *keytabWrapper) update(now time.Time) {
 			return
 		}
 
-		// This allows the admin to verify that different instances of the server are assiging
-		// the same password if they have the same seed without revealing the real password
-		passwordhash := fmt.Sprintf("%x", sha256.Sum256([]byte(password)))[:12]
-
 		t.nextUpdate = nowPeriod.Next().Time()
 		t.err = nil
 		t.keytab = &libtokenmachine.Keytab{
@@ -278,9 +279,10 @@ func (t *keytabWrapper) update(now time.Time) {
 			Exp:        nowPeriod.Time().Unix() + int64(t.timePeriod.Duration.Seconds()),
 		}
 
-		zap.L().Debug(fmt.Sprintf("Keytab %s generated; password=%s, exp=%d", t.principal, passwordhash, t.keytab.Exp))
-		return
+		zap.L().Debug(fmt.Sprintf("Keytab %s generated with exp=%d", t.principal, t.keytab.Exp))
+		// zap.L().Debug(fmt.Sprintf("Keytab %s generated with exp=%d and hashed password %s", t.principal, t.keytab.Exp, fmt.Sprintf("%x", sha256.Sum256([]byte(password)))[:12]))
 
+		return
 	}
 
 	zap.L().Debug(fmt.Sprintf("Keytab %s NOT ready for new keytab", t.principal))

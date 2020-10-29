@@ -90,27 +90,28 @@ func (config *Config) Build() (*Cache, error) {
 		},
 	}
 
-	go func() {
-		t.wg.Add(1)
-		for {
-			select {
-			case <-t.closed:
-				t.wg.Done()
-				return
-			case <-t.ticker.C:
-				t.processCache()
-
-			}
-		}
-	}()
-
+	go t.run()
 	return t, nil
 
 }
 
-func (t *Cache) processCache() {
+func (t *Cache) run() {
+	t.wg.Add(1)
+	for {
+		select {
+		case <-t.closed:
+			t.wg.Done()
+			return
+		case <-t.ticker.C:
+			t.cleanup()
 
-	zap.L().Debug("Processing cache start")
+		}
+	}
+}
+
+func (t *Cache) cleanup() {
+
+	zap.L().Debug("Running cleanup")
 
 	var removes []string
 	t.mutex.Lock()
@@ -132,7 +133,7 @@ func (t *Cache) processCache() {
 		}
 	}
 
-	zap.L().Debug("Processing cache completed")
+	zap.L().Debug("Cleanup completed")
 
 }
 

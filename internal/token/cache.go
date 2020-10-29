@@ -91,9 +91,7 @@ func (t *Cache) run() {
 			t.wg.Done()
 			return
 		case <-t.ticker.C:
-			zap.L().Debug("Processing cache start")
-			t.processTokenCache()
-			zap.L().Debug("Processing cache completed")
+			t.cleanup()
 		}
 	}
 }
@@ -225,9 +223,9 @@ func (t *Cache) ParseToken(tokenString string) (*libtokenmachine.Token, error) {
 	return token.Copy(), nil
 }
 
-func (t *Cache) processTokenCache() {
+func (t *Cache) cleanup() {
 
-	zap.L().Debug("Processing Token cache")
+	zap.L().Debug("Running cleanup")
 
 	var removes []string
 	t.tokenMapMutex.Lock()
@@ -249,7 +247,7 @@ func (t *Cache) processTokenCache() {
 		}
 	}
 
-	zap.L().Debug("Processing Token cache completed")
+	zap.L().Debug("Cleanup completed")
 
 }
 

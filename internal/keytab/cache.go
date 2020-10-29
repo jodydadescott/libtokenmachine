@@ -43,7 +43,7 @@ var (
 )
 
 const (
-	tickRate        = time.Duration(10) * time.Second
+	defaultTickRate = time.Duration(10) * time.Second
 	defaultLifetime = time.Duration(5) * time.Minute
 
 	passwordCharset = "abcdefghijklmnopqrstuvwxyz" +
@@ -59,6 +59,7 @@ const (
 // TimePeriod: Time Period for Keytab Renewals
 type Config struct {
 	Keytabs           []*libtokenmachine.Keytab
+	TickRate          time.Duration
 	Lifetime          time.Duration
 	LogHashedPassword bool // useful for debugging
 }
@@ -98,6 +99,7 @@ type Cache struct {
 	mutex      sync.RWMutex
 	internal   map[string]*keytabWrapper
 	lifetime   time.Duration
+	tickRate   time.Duration
 }
 
 type keytabWrapper struct {
@@ -114,14 +116,19 @@ func (config *Config) Build() (*Cache, error) {
 
 	zap.L().Debug("Starting")
 
+	tickRate := defaultTickRate
 	lifetime := defaultLifetime
+
+	if config.TickRate > 0 {
+		tickRate = config.TickRate
+	}
 
 	if config.Lifetime > 0 {
 		lifetime = config.Lifetime
 	}
 
-	if lifetime < time.Minute {
-		return nil, fmt.Errorf("Default lifetime must be one minute or greater")
+	if tickRate > lifetime {
+		return nil, fmt.Errorf("Lifetime may not be less then the tickRate")
 	}
 
 	t := &Cache{
@@ -130,6 +137,7 @@ func (config *Config) Build() (*Cache, error) {
 		ticker:     time.NewTicker(time.Second),
 		internal:   make(map[string]*keytabWrapper),
 		lifetime:   lifetime,
+		tickRate:   tickRate,
 	}
 
 	err := t.init(config)
@@ -171,8 +179,8 @@ func (t *Cache) init(config *Config) error {
 		}
 
 		// Lifetime less then a minute requires to much resources and does not make much sense
-		if tickRate < lifetime {
-			return fmt.Errorf(fmt.Sprintf("Keytab %s lifetime of %s less then tickrate of %s", keytab.Principal, lifetime, tickRate))
+		if t.tickRate < lifetime {
+			return fmt.Errorf(fmt.Sprintf("Keytab %s lifetime of %s less then tickrate of %s", keytab.Principal, lifetime, t.tickRate))
 		}
 
 		t.internal[keytab.Principal] = &keytabWrapper{
@@ -192,7 +200,7 @@ func (t *Cache) run() {
 	t.wg.Add(1)
 
 	// TimePeriod based on tick rate
-	timeperiod := util.NewPeriod(tickRate)
+	timeperiod := util.NewPeriod(t.tickRate)
 	next := timeperiod.From(util.GetTime()).Next().Time()
 
 	for {

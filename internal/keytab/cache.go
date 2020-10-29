@@ -179,7 +179,7 @@ func (t *Cache) init(config *Config) error {
 		}
 
 		// Lifetime less then a minute requires to much resources and does not make much sense
-		if t.tickRate < lifetime {
+		if t.tickRate > lifetime {
 			return fmt.Errorf(fmt.Sprintf("Keytab %s lifetime of %s less then tickrate of %s", keytab.Principal, lifetime, t.tickRate))
 		}
 
@@ -188,7 +188,7 @@ func (t *Cache) init(config *Config) error {
 			timePeriod: util.NewPeriod(lifetime),
 			seed:       seed,
 		}
-		zap.L().Debug(fmt.Sprintf("Loaded principal %s", keytab.Principal))
+		zap.L().Debug(fmt.Sprintf("Loaded principal %s with lifetime of %s", keytab.Principal, lifetime))
 	}
 
 	return nil

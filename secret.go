@@ -18,19 +18,20 @@ package libtokenmachine
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/jinzhu/copier"
 )
 
 // Secret Holds a secret. Both state and config.
 type Secret struct {
-	Name       string `json:"name,omitempty" yaml:"name,omitempty"`
-	Seed       string `json:"seed,omitempty" yaml:"seed,omitempty"`
-	Lifetime   int64  `json:"lifetime,omitempty" yaml:"lifetime,omitempty"`
-	Exp        int64  `json:"exp,omitempty" yaml:"exp,omitempty"`
-	Secret     string `json:"secret,omitempty" yaml:"secret,omitempty"`
-	NextExp    int64  `json:"nextExp,omitempty" yaml:"nextExp,omitempty"`
-	NextSecret string `json:"nextSecret,omitempty" yaml:"nextSecret,omitempty"`
+	Name       string        `json:"name,omitempty" yaml:"name,omitempty"`
+	Seed       string        `json:"seed,omitempty" yaml:"seed,omitempty"`
+	Lifetime   time.Duration `json:"lifetime,omitempty" yaml:"lifetime,omitempty"`
+	Exp        int64         `json:"exp,omitempty" yaml:"exp,omitempty"`
+	Secret     string        `json:"secret,omitempty" yaml:"secret,omitempty"`
+	NextExp    int64         `json:"nextExp,omitempty" yaml:"nextExp,omitempty"`
+	NextSecret string        `json:"nextSecret,omitempty" yaml:"nextSecret,omitempty"`
 }
 
 // JSON Return JSON String representation

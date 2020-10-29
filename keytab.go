@@ -18,6 +18,7 @@ package libtokenmachine
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/jinzhu/copier"
 )
@@ -26,11 +27,11 @@ import (
 // encrypted password. Keytabs are used to prove identity specifically for
 // services and scripts.
 type Keytab struct {
-	Principal  string `json:"principal,omitempty" yaml:"principal,omitempty"`
-	Seed       string `json:"seed,omitempty" yaml:"seed,omitempty"`
-	Base64File string `json:"base64file,omitempty" yaml:"base64file,omitempty"`
-	Exp        int64  `json:"exp,omitempty" yaml:"exp,omitempty"`
-	Lifetime   int64  `json:"lifetime,omitempty" yaml:"lifetime,omitempty"`
+	Principal  string        `json:"principal,omitempty" yaml:"principal,omitempty"`
+	Seed       string        `json:"seed,omitempty" yaml:"seed,omitempty"`
+	Base64File string        `json:"base64file,omitempty" yaml:"base64file,omitempty"`
+	Exp        int64         `json:"exp,omitempty" yaml:"exp,omitempty"`
+	Lifetime   time.Duration `json:"lifetime,omitempty" yaml:"lifetime,omitempty"`
 }
 
 // JSON Return JSON String representation

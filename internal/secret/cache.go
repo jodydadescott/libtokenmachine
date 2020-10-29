@@ -121,7 +121,7 @@ func (t *Cache) addSecret(secret *libtokenmachine.Secret) error {
 	lifetime := t.lifetime
 
 	if secret.Lifetime > 0 {
-		lifetime = time.Duration(secret.Lifetime) * time.Second
+		lifetime = secret.Lifetime
 	}
 
 	seed := base32.StdEncoding.EncodeToString([]byte(secret.Seed))

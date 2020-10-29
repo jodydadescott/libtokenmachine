@@ -163,7 +163,7 @@ func (t *Cache) init(config *Config) error {
 		lifetime := t.lifetime
 
 		if keytab.Lifetime > 0 {
-			lifetime = time.Duration(keytab.Lifetime) * time.Second
+			lifetime = keytab.Lifetime
 		}
 
 		// Lifetime less then a minute requires to much resources and does not make much sense

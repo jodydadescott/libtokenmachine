@@ -25,8 +25,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// Cache ...
-type Cache struct {
+// TokenMachineServer ...
+type TokenMachineServer struct {
 	publickey *internal.PublicKeyCache
 	token     *internal.TokenCache
 	keytab    *internal.KeytabCache
@@ -36,7 +36,7 @@ type Cache struct {
 }
 
 // NewInstance ...
-func NewInstance(config *libtokenmachine.Config) (*Cache, error) {
+func NewInstance(config *libtokenmachine.Config) (*TokenMachineServer, error) {
 
 	zap.L().Info(fmt.Sprintf("Starting"))
 
@@ -101,7 +101,7 @@ func NewInstance(config *libtokenmachine.Config) (*Cache, error) {
 		return nil, err
 	}
 
-	return &Cache{
+	return &TokenMachineServer{
 		publickey: publickey,
 		token:     token,
 		keytab:    keytab,
@@ -113,7 +113,7 @@ func NewInstance(config *libtokenmachine.Config) (*Cache, error) {
 }
 
 // Shutdown shutdown
-func (t *Cache) Shutdown() {
+func (t *TokenMachineServer) Shutdown() {
 	zap.L().Debug("Stopping")
 	t.secret.Shutdown()
 	t.keytab.Shutdown()
@@ -123,7 +123,7 @@ func (t *Cache) Shutdown() {
 }
 
 // GetNonce returns Nonce if provided token is authorized
-func (t *Cache) GetNonce(ctx context.Context, tokenString string) (*libtokenmachine.Nonce, error) {
+func (t *TokenMachineServer) GetNonce(ctx context.Context, tokenString string) (*libtokenmachine.Nonce, error) {
 
 	token, err := t.token.ParseToken(tokenString)
 	if err != nil {
@@ -149,7 +149,7 @@ func (t *Cache) GetNonce(ctx context.Context, tokenString string) (*libtokenmach
 }
 
 // GetKeytab returns Keytab if provided token is authorized
-func (t *Cache) GetKeytab(ctx context.Context, tokenString, principal string) (*libtokenmachine.Keytab, error) {
+func (t *TokenMachineServer) GetKeytab(ctx context.Context, tokenString, principal string) (*libtokenmachine.Keytab, error) {
 
 	token, err := t.token.ParseToken(tokenString)
 	if err != nil {
@@ -175,7 +175,7 @@ func (t *Cache) GetKeytab(ctx context.Context, tokenString, principal string) (*
 }
 
 // GetSecret returns Secret if provided token is authorized
-func (t *Cache) GetSecret(ctx context.Context, tokenString, name string) (*libtokenmachine.Secret, error) {
+func (t *TokenMachineServer) GetSecret(ctx context.Context, tokenString, name string) (*libtokenmachine.Secret, error) {
 
 	token, err := t.token.ParseToken(tokenString)
 	if err != nil {

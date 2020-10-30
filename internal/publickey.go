@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package publickey
+package internal
 
 import (
 	"crypto/ecdsa"
@@ -29,25 +29,41 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jinzhu/copier"
 	"github.com/jodydadescott/libtokenmachine"
 	"go.uber.org/zap"
 )
 
-const (
-	defaultCacheRefreshInterval = time.Duration(5) * time.Minute
-	defaultIdleConnections      = 4
-	defaultRequestTimeout       = time.Duration(60) * time.Second
-	defaultKeyLifetime          = 86400
-)
+// PublicKey ...
+type PublicKey struct {
+	EcdsaPublicKey *ecdsa.PublicKey
+	Iss            string
+	Kid            string
+	Kty            string
+	Exp            int64
+}
 
-// Config The config
-type Config struct {
+// JSON Return JSON String representation
+func (t *PublicKey) JSON() string {
+	j, _ := json.Marshal(t)
+	return string(j)
+}
+
+// Copy return copy
+func (t *PublicKey) Copy() *PublicKey {
+	clone := &PublicKey{}
+	copier.Copy(&clone, &t)
+	return clone
+}
+
+// PublicKeyConfig The config
+type PublicKeyConfig struct {
 	CacheRefreshInterval, RequestTimeout time.Duration
 	IdleConnections                      int
 }
 
-// Cache ...
-type Cache struct {
+// PublicKeyCache cache
+type PublicKeyCache struct {
 	httpClient *http.Client
 	mutex      sync.RWMutex
 	internal   map[string]*PublicKey
@@ -57,13 +73,13 @@ type Cache struct {
 }
 
 // Build Returns a new Token Cache
-func (config *Config) Build() (*Cache, error) {
+func (config *PublicKeyConfig) Build() (*PublicKeyCache, error) {
 
 	zap.L().Debug("Starting")
 
 	cacheRefreshInterval := defaultCacheRefreshInterval
-	requestTimeout := defaultRequestTimeout
-	idleConnections := defaultIdleConnections
+	requestTimeout := publicKeyDefaultRequestTimeout
+	idleConnections := publicKeyDefaultIdleConnections
 
 	if config.CacheRefreshInterval > 0 {
 		cacheRefreshInterval = config.CacheRefreshInterval
@@ -77,7 +93,7 @@ func (config *Config) Build() (*Cache, error) {
 		idleConnections = config.IdleConnections
 	}
 
-	t := &Cache{
+	t := &PublicKeyCache{
 		internal: make(map[string]*PublicKey),
 		closed:   make(chan struct{}),
 		ticker:   time.NewTicker(cacheRefreshInterval),
@@ -95,7 +111,7 @@ func (config *Config) Build() (*Cache, error) {
 
 }
 
-func (t *Cache) run() {
+func (t *PublicKeyCache) run() {
 	t.wg.Add(1)
 	for {
 		select {
@@ -109,7 +125,7 @@ func (t *Cache) run() {
 	}
 }
 
-func (t *Cache) cleanup() {
+func (t *PublicKeyCache) cleanup() {
 
 	zap.L().Debug("Running cleanup")
 
@@ -139,7 +155,7 @@ func (t *Cache) cleanup() {
 
 // GetKey Returns PublicKey from cache if found. If not gets PublicKey from
 // validated issuer, stores in cache and returns copy
-func (t *Cache) GetKey(iss, kid string) (*PublicKey, error) {
+func (t *PublicKeyCache) GetKey(iss, kid string) (*PublicKey, error) {
 
 	key := iss + ":" + kid
 
@@ -198,7 +214,7 @@ func (t *Cache) GetKey(iss, kid string) (*PublicKey, error) {
 	return nil, libtokenmachine.ErrNotFound
 }
 
-func (t *Cache) getOpenIDConfiguration(fqdn string) (*openIDConfiguration, error) {
+func (t *PublicKeyCache) getOpenIDConfiguration(fqdn string) (*openIDConfiguration, error) {
 
 	resp, err := t.httpClient.Get(fqdn)
 	if err != nil {
@@ -215,7 +231,7 @@ func (t *Cache) getOpenIDConfiguration(fqdn string) (*openIDConfiguration, error
 	return openIDConfigurationFromJSON(b)
 }
 
-func (t *Cache) getJWKs(fqdn string) (*jwks, error) {
+func (t *PublicKeyCache) getJWKs(fqdn string) (*jwks, error) {
 
 	resp, err := t.httpClient.Get(fqdn)
 	if err != nil {
@@ -295,7 +311,6 @@ type jwks struct {
 	Keys []jwk `json:"keys"`
 }
 
-// JSON ...
 func (t *jwks) json() string {
 	e, err := json.Marshal(t)
 	if err != nil {
@@ -355,7 +370,7 @@ func newKeyEC(jwk *jwk) (*PublicKey, error) {
 			X:     new(big.Int).SetBytes(byteX),
 			Y:     new(big.Int).SetBytes(byteY),
 		},
-		Exp: time.Now().Unix() + int64(defaultKeyLifetime),
+		Exp: time.Now().Unix() + int64(publicKeyDefaultKeyLifetime),
 		Kid: jwk.Kid,
 		Kty: jwk.Kty,
 	}, nil
@@ -363,7 +378,7 @@ func newKeyEC(jwk *jwk) (*PublicKey, error) {
 }
 
 // Shutdown Cache
-func (t *Cache) Shutdown() {
+func (t *PublicKeyCache) Shutdown() {
 	zap.L().Debug("Stopping")
 	close(t.closed)
 	t.wg.Wait()

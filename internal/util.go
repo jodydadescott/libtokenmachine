@@ -14,33 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package publickey
+package internal
 
-import (
-	"crypto/ecdsa"
-	"encoding/json"
+import "time"
 
-	"github.com/jinzhu/copier"
-)
-
-// PublicKey ...
-type PublicKey struct {
-	EcdsaPublicKey *ecdsa.PublicKey
-	Iss            string
-	Kid            string
-	Kty            string
-	Exp            int64
-}
-
-// JSON Return JSON String representation
-func (t *PublicKey) JSON() string {
-	j, _ := json.Marshal(t)
-	return string(j)
-}
-
-// Copy return copy
-func (t *PublicKey) Copy() *PublicKey {
-	clone := &PublicKey{}
-	copier.Copy(&clone, &t)
-	return clone
+func getTime() time.Time {
+	// If running multiple instance the time must be the same so we statically use UTC
+	return time.Now().In(time.UTC)
 }

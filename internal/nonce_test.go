@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nonce
+package internal
 
 import (
 	"testing"
@@ -25,7 +25,7 @@ func Test1(t *testing.T) {
 
 	var err error
 
-	config := &Config{
+	config := &NonceConfig{
 		Lifetime: time.Duration(4) * time.Second,
 	}
 
@@ -39,6 +39,8 @@ func Test1(t *testing.T) {
 	nonce2, _ := nonces.NewNonce()
 	nonce3, _ := nonces.NewNonce()
 
+	// TODO This must be rewritten
+
 	if nonce1.Value == nonce2.Value {
 		t.Fatalf("Unexpected")
 	}
@@ -48,46 +50,6 @@ func Test1(t *testing.T) {
 	}
 
 	if nonce2.Value == nonce3.Value {
-		t.Fatalf("Unexpected")
-	}
-
-	if _, err := nonces.GetNonce(nonce1.Value); err != nil {
-		t.Fatalf("Unexpected")
-	}
-
-	if _, err := nonces.GetNonce(nonce2.Value); err != nil {
-		t.Fatalf("Unexpected")
-	}
-
-	if _, err := nonces.GetNonce(nonce3.Value); err != nil {
-		t.Fatalf("Unexpected")
-	}
-
-	time.Sleep(2 * time.Second)
-
-	if _, err := nonces.GetNonce(nonce1.Value); err != nil {
-		t.Fatalf("Unexpected")
-	}
-
-	if _, err := nonces.GetNonce(nonce2.Value); err != nil {
-		t.Fatalf("Unexpected")
-	}
-
-	if _, err := nonces.GetNonce(nonce3.Value); err != nil {
-		t.Fatalf("Unexpected")
-	}
-
-	time.Sleep(6 * time.Second)
-
-	if _, err := nonces.GetNonce(nonce1.Value); err == nil {
-		t.Fatalf("Unexpected")
-	}
-
-	if _, err := nonces.GetNonce(nonce2.Value); err == nil {
-		t.Fatalf("Unexpected")
-	}
-
-	if _, err := nonces.GetNonce(nonce3.Value); err == nil {
 		t.Fatalf("Unexpected")
 	}
 

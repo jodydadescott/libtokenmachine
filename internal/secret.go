@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package secret
+package internal
 
 import (
 	"crypto/sha256"
@@ -24,44 +24,36 @@ import (
 	"time"
 
 	"github.com/jodydadescott/libtokenmachine"
-	"github.com/jodydadescott/libtokenmachine/internal/util"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"go.uber.org/zap"
 )
 
-const (
-	defaultLifetime = time.Duration(12) * time.Hour
-
-	secretCharset = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@!"
-)
-
-// Config Config
-type Config struct {
+// SecretConfig Config
+type SecretConfig struct {
 	Secrets  []*libtokenmachine.Secret
 	Lifetime time.Duration
 }
 
 type secretWrapper struct {
 	name, seed string
-	timePeriod *util.TimePeriod
+	timePeriod *TimePeriod
 	mutex      sync.Mutex
 }
 
-// Cache Manages shared secrets
-type Cache struct {
+// SecretCache Manages shared secrets
+type SecretCache struct {
 	mutex    sync.RWMutex
 	internal map[string]*secretWrapper
 	lifetime time.Duration
 }
 
 // Build Returns a new Cache
-func (config *Config) Build() (*Cache, error) {
+func (config *SecretConfig) Build() (*SecretCache, error) {
 
 	zap.L().Debug("Starting")
 
-	lifetime := defaultLifetime
+	lifetime := secretDefaultLifetime
 
 	if config.Lifetime > 0 {
 		lifetime = config.Lifetime
@@ -71,7 +63,7 @@ func (config *Config) Build() (*Cache, error) {
 		return nil, fmt.Errorf("Default lifetime must be one minute or greater")
 	}
 
-	t := &Cache{
+	t := &SecretCache{
 		internal: make(map[string]*secretWrapper),
 		lifetime: lifetime,
 	}
@@ -84,7 +76,7 @@ func (config *Config) Build() (*Cache, error) {
 	return t, nil
 }
 
-func (t *Cache) loadSecrets(secrets []*libtokenmachine.Secret) error {
+func (t *SecretCache) loadSecrets(secrets []*libtokenmachine.Secret) error {
 
 	if secrets == nil || len(secrets) <= 0 {
 		zap.L().Warn("No secrets to load?")
@@ -102,7 +94,7 @@ func (t *Cache) loadSecrets(secrets []*libtokenmachine.Secret) error {
 	return nil
 }
 
-func (t *Cache) addSecret(secret *libtokenmachine.Secret) error {
+func (t *SecretCache) addSecret(secret *libtokenmachine.Secret) error {
 
 	// Must have map locked!
 
@@ -128,7 +120,7 @@ func (t *Cache) addSecret(secret *libtokenmachine.Secret) error {
 
 	t.internal[secret.Name] = &secretWrapper{
 		name:       secret.Name,
-		timePeriod: util.NewPeriod(lifetime),
+		timePeriod: NewPeriod(lifetime),
 		seed:       seed,
 	}
 
@@ -136,7 +128,7 @@ func (t *Cache) addSecret(secret *libtokenmachine.Secret) error {
 }
 
 // GetSecret Returns secret if found and authorized
-func (t *Cache) GetSecret(name string) (*libtokenmachine.Secret, error) {
+func (t *SecretCache) GetSecret(name string) (*libtokenmachine.Secret, error) {
 
 	if name == "" {
 		zap.L().Debug("name is empty")
@@ -159,7 +151,7 @@ func (t *Cache) GetSecret(name string) (*libtokenmachine.Secret, error) {
 	wrapper.mutex.Lock()
 	defer wrapper.mutex.Unlock()
 
-	now := util.GetTime()
+	now := getTime()
 
 	var err error
 	var nowsecret string
@@ -233,21 +225,6 @@ func getChar(b byte) byte {
 	return secretCharset[r]
 }
 
-func int31n(n int, input int64) int32 {
-	v := uint32(input >> 31)
-	prod := uint64(v) * uint64(n)
-	low := uint32(prod)
-	if low < uint32(n) {
-		thresh := uint32(-n) % uint32(n)
-		for low < thresh {
-			v = uint32(input >> 31)
-			prod = uint64(v) * uint64(n)
-			low = uint32(prod)
-		}
-	}
-	return int32(prod >> 32)
-}
-
 // Shutdown Server. Nothing to do but left to preserve pattern and future
-func (t *Cache) Shutdown() {
+func (t *SecretCache) Shutdown() {
 }

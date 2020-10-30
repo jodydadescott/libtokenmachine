@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package token
+package internal
 
 import (
 	"fmt"
@@ -25,31 +25,26 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/jodydadescott/libtokenmachine"
-	"github.com/jodydadescott/libtokenmachine/internal/publickey"
 	"go.uber.org/zap"
 )
 
-const (
-	defaultCacheRefreshInterval = time.Duration(5) * time.Minute
-)
-
-// PublicKeyCache PublicKeyCache
-type PublicKeyCache interface {
-	GetKey(iss, kid string) (*publickey.PublicKey, error)
+// PublicKeyInterface PublicKeyCache
+type PublicKeyInterface interface {
+	GetKey(iss, kid string) (*PublicKey, error)
 }
 
-// Config The config
-type Config struct {
+// TokenConfig The config
+type TokenConfig struct {
 	CacheRefreshInterval time.Duration
 }
 
-// Cache Parses and verifies tokens by fetching public keys from the token issuer and caching
+// TokenCache Parses and verifies tokens by fetching public keys from the token issuer and caching
 // public keys for future use. Tokens that are verified are also stored in the cache for
 // quicker validation in the future. Replay attack is also provided by a Nonce implementation.
 // The nonce implementation works by generating random strings that may be fetched by a
 // token bearer. The bearer should use the nonce to get a new token from their token provider
 // with the audience (aud) field set to the nonce value. When then token is parsed
-type Cache struct {
+type TokenCache struct {
 	tokenMapMutex       sync.RWMutex
 	tokenMap            map[string]*libtokenmachine.Token
 	closed              chan struct{}
@@ -57,11 +52,11 @@ type Cache struct {
 	wg                  sync.WaitGroup
 	seededRand          *rand.Rand
 	permitPublicKeyHTTP bool
-	publicKeyCache      PublicKeyCache
+	publicKeyCache      PublicKeyInterface
 }
 
 // Build returns new instance of cache from config
-func (config *Config) Build(publicKeyCache PublicKeyCache) (*Cache, error) {
+func (config *TokenConfig) Build(publicKeyCache PublicKeyInterface) (*TokenCache, error) {
 
 	zap.L().Debug("Starting")
 
@@ -71,7 +66,7 @@ func (config *Config) Build(publicKeyCache PublicKeyCache) (*Cache, error) {
 		cacheRefreshInterval = config.CacheRefreshInterval
 	}
 
-	t := &Cache{
+	t := &TokenCache{
 		tokenMap:       make(map[string]*libtokenmachine.Token),
 		closed:         make(chan struct{}),
 		ticker:         time.NewTicker(cacheRefreshInterval),
@@ -83,7 +78,7 @@ func (config *Config) Build(publicKeyCache PublicKeyCache) (*Cache, error) {
 	return t, nil
 }
 
-func (t *Cache) run() {
+func (t *TokenCache) run() {
 	t.wg.Add(1)
 	for {
 		select {
@@ -96,20 +91,20 @@ func (t *Cache) run() {
 	}
 }
 
-func (t *Cache) mapGetToken(key string) *libtokenmachine.Token {
+func (t *TokenCache) mapGetToken(key string) *libtokenmachine.Token {
 	t.tokenMapMutex.RLock()
 	defer t.tokenMapMutex.RUnlock()
 	return t.tokenMap[key]
 }
 
-func (t *Cache) mapPutToken(key string, entity *libtokenmachine.Token) {
+func (t *TokenCache) mapPutToken(key string, entity *libtokenmachine.Token) {
 	t.tokenMapMutex.Lock()
 	defer t.tokenMapMutex.Unlock()
 	t.tokenMap[key] = entity
 }
 
 // ParseToken ...
-func (t *Cache) ParseToken(tokenString string) (*libtokenmachine.Token, error) {
+func (t *TokenCache) ParseToken(tokenString string) (*libtokenmachine.Token, error) {
 
 	if tokenString == "" {
 		zap.L().Debug("tokenString is empty")
@@ -223,7 +218,7 @@ func (t *Cache) ParseToken(tokenString string) (*libtokenmachine.Token, error) {
 	return token.Copy(), nil
 }
 
-func (t *Cache) cleanup() {
+func (t *TokenCache) cleanup() {
 
 	zap.L().Debug("Running cleanup")
 
@@ -252,7 +247,7 @@ func (t *Cache) cleanup() {
 }
 
 // Shutdown Cache
-func (t *Cache) Shutdown() {
+func (t *TokenCache) Shutdown() {
 	zap.L().Debug("Stopping")
 	close(t.closed)
 	t.wg.Wait()

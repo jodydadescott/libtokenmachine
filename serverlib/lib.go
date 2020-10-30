@@ -17,11 +17,184 @@ limitations under the License.
 package serverlib
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/jodydadescott/libtokenmachine"
 	"github.com/jodydadescott/libtokenmachine/internal"
+	"go.uber.org/zap"
 )
 
-// NewInstance returns new instance of LibTokenMachine
-func NewInstance(config *libtokenmachine.Config) (libtokenmachine.LibTokenMachine, error) {
-	return internal.NewInstance(config)
+// Cache ...
+type Cache struct {
+	publickey *internal.PublicKeyCache
+	token     *internal.TokenCache
+	keytab    *internal.KeytabCache
+	nonce     *internal.NonceCache
+	secret    *internal.SecretCache
+	policy    *internal.PolicyEngine
+}
+
+// NewInstance ...
+func NewInstance(config *libtokenmachine.Config) (*Cache, error) {
+
+	zap.L().Info(fmt.Sprintf("Starting"))
+
+	publickeyConfig := &internal.PublicKeyConfig{}
+	tokenConfig := &internal.TokenConfig{}
+	keytabConfig := &internal.KeytabConfig{}
+	nonceConfig := &internal.NonceConfig{}
+	secretConfig := &internal.SecretConfig{}
+	policyConfig := &internal.PolicyConfig{}
+
+	if config.Policy != "" {
+		policyConfig.Policy = config.Policy
+	}
+
+	if config.NonceLifetime > 0 {
+		nonceConfig.Lifetime = config.NonceLifetime
+	}
+
+	if config.SecretSecrets != nil {
+		secretConfig.Secrets = config.SecretSecrets
+	}
+
+	if config.SecretLifetime > 0 {
+		secretConfig.Lifetime = config.SecretLifetime
+	}
+
+	if config.KeytabKeytabs != nil {
+		keytabConfig.Keytabs = config.KeytabKeytabs
+	}
+
+	if config.KeytabLifetime > 0 {
+		keytabConfig.Lifetime = config.KeytabLifetime
+	}
+
+	policy, err := policyConfig.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	publickey, err := publickeyConfig.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := tokenConfig.Build(publickey)
+	if err != nil {
+		return nil, err
+	}
+
+	keytab, err := keytabConfig.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := nonceConfig.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	secret, err := secretConfig.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Cache{
+		publickey: publickey,
+		token:     token,
+		keytab:    keytab,
+		nonce:     nonce,
+		secret:    secret,
+		policy:    policy,
+	}, nil
+
+}
+
+// Shutdown shutdown
+func (t *Cache) Shutdown() {
+	zap.L().Debug("Stopping")
+	t.secret.Shutdown()
+	t.keytab.Shutdown()
+	t.nonce.Shutdown()
+	t.token.Shutdown()
+	t.publickey.Shutdown()
+}
+
+// GetNonce returns Nonce if provided token is authorized
+func (t *Cache) GetNonce(ctx context.Context, tokenString string) (*libtokenmachine.Nonce, error) {
+
+	token, err := t.token.ParseToken(tokenString)
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("GetNonce(tokenString=%s)->%s", tokenString, "Error:"+err.Error()))
+		return nil, err
+	}
+
+	// Validate that token is allowed to pull nonce
+	err = t.policy.AuthGetNonce(ctx, token.Claims)
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("GetNonce(tokenString=%s)->%s", tokenString, "Error:"+err.Error()))
+		return nil, err
+	}
+
+	nonce, err := t.nonce.NewNonce()
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("GetNonce(tokenString=%s)->%s", tokenString, "Error:"+err.Error()))
+		return nil, err
+	}
+
+	zap.L().Debug(fmt.Sprintf("GetNonce(tokenString=%s)->%s", tokenString, "Granted"))
+	return nonce, nil
+}
+
+// GetKeytab returns Keytab if provided token is authorized
+func (t *Cache) GetKeytab(ctx context.Context, tokenString, principal string) (*libtokenmachine.Keytab, error) {
+
+	token, err := t.token.ParseToken(tokenString)
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,principal=%s)->%s", tokenString, principal, "Error:"+err.Error()))
+		return nil, err
+	}
+
+	err = t.policy.AuthGetKeytab(ctx, token.Claims, t.nonce.GetNonceValues(), principal)
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,principal=%s)->%s", tokenString, principal, "Error:"+err.Error()))
+		return nil, err
+	}
+
+	keytab, err := t.keytab.GetKeytab(principal)
+
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,principal=%s)->%s", tokenString, principal, "Error:"+err.Error()))
+		return nil, err
+	}
+
+	zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,principal=%s)->%s", tokenString, principal, "Granted"))
+	return keytab, nil
+}
+
+// GetSecret returns Secret if provided token is authorized
+func (t *Cache) GetSecret(ctx context.Context, tokenString, name string) (*libtokenmachine.Secret, error) {
+
+	token, err := t.token.ParseToken(tokenString)
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("GetSecret(tokenString=%s,name=%s)->%s", tokenString, name, "Error:"+err.Error()))
+		return nil, err
+	}
+
+	err = t.policy.AuthGetSecret(ctx, token.Claims, t.nonce.GetNonceValues(), name)
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("GetSecret(tokenString=%s,name=%s)->%s", tokenString, name, "Error:"+err.Error()))
+		return nil, err
+	}
+
+	secret, err := t.secret.GetSecret(name)
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("GetSecret(tokenString=%s,name=%s)->%s", tokenString, name, "Error:"+err.Error()))
+		return nil, err
+	}
+
+	zap.L().Debug(fmt.Sprintf("GetSecret(tokenString=%s,name=%s)->%s", tokenString, name, "Granted"))
+	return secret, nil
 }

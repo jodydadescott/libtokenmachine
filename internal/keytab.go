@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package keytab
+package internal
 
 import (
 	"bufio"
@@ -32,7 +32,6 @@ import (
 	"time"
 
 	"github.com/jodydadescott/libtokenmachine"
-	"github.com/jodydadescott/libtokenmachine/internal/util"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"go.uber.org/zap"
@@ -42,29 +41,21 @@ var (
 	keytabRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
-const (
-	defaultTickRate = time.Duration(10) * time.Second
-	defaultLifetime = time.Duration(5) * time.Minute
-
-	passwordCharset = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@!"
-)
-
-// Config Configuration
+// KeytabConfig Config
 //
 // Seed: A shared secret that the password for a keytab is generated from
 //
 // Principals: Zero or more principlas Kerberos principals (or usernames)
 //
 // TimePeriod: Time Period for Keytab Renewals
-type Config struct {
+type KeytabConfig struct {
 	Keytabs           []*libtokenmachine.Keytab
 	TickRate          time.Duration
 	Lifetime          time.Duration
 	LogHashedPassword bool // useful for debugging
 }
 
-// Cache holds and manages Kerberos Keytabs. Keytabs are generated or
+// KeytabCache holds and manages Kerberos Keytabs. Keytabs are generated or
 // regenerated based on user specified intervals using the UNIX
 // cron format. When multiple instances of the server are ran the cron
 // interval should be configured the same. When keytabs are generated
@@ -92,7 +83,7 @@ type Config struct {
 // periods are calculated. If they differ by more then 30 seconds then
 // the Keytabs are generated using the previous period. Otherwise they
 // will be created when the next period arrives.
-type Cache struct {
+type KeytabCache struct {
 	closeTimer chan struct{}
 	wg         sync.WaitGroup
 	ticker     *time.Ticker
@@ -108,16 +99,16 @@ type keytabWrapper struct {
 	principal, seed string
 	keytab          *libtokenmachine.Keytab
 	err             error
-	timePeriod      *util.TimePeriod
+	timePeriod      *TimePeriod
 }
 
 // Build Returns new instance of Keytabs
-func (config *Config) Build() (*Cache, error) {
+func (config *KeytabConfig) Build() (*KeytabCache, error) {
 
 	zap.L().Debug("Starting")
 
-	tickRate := defaultTickRate
-	lifetime := defaultLifetime
+	tickRate := keytabDefaultTickRate
+	lifetime := keytabDefaultLifetime
 
 	if config.TickRate > 0 {
 		tickRate = config.TickRate
@@ -131,7 +122,7 @@ func (config *Config) Build() (*Cache, error) {
 		return nil, fmt.Errorf("Lifetime may not be less then the tickRate")
 	}
 
-	t := &Cache{
+	t := &KeytabCache{
 		closeTimer: make(chan struct{}),
 		wg:         sync.WaitGroup{},
 		ticker:     time.NewTicker(time.Second),
@@ -149,7 +140,7 @@ func (config *Config) Build() (*Cache, error) {
 	return t, nil
 }
 
-func (t *Cache) init(config *Config) error {
+func (t *KeytabCache) init(config *KeytabConfig) error {
 
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -185,7 +176,7 @@ func (t *Cache) init(config *Config) error {
 
 		t.internal[keytab.Principal] = &keytabWrapper{
 			principal:  keytab.Principal,
-			timePeriod: util.NewPeriod(lifetime),
+			timePeriod: NewPeriod(lifetime),
 			seed:       seed,
 		}
 		zap.L().Debug(fmt.Sprintf("Loaded principal %s with lifetime of %s", keytab.Principal, lifetime))
@@ -195,13 +186,13 @@ func (t *Cache) init(config *Config) error {
 
 }
 
-func (t *Cache) run() {
+func (t *KeytabCache) run() {
 
 	t.wg.Add(1)
 
 	// TimePeriod based on tick rate
-	timeperiod := util.NewPeriod(t.tickRate)
-	next := timeperiod.From(util.GetTime()).Next().Time()
+	timeperiod := NewPeriod(t.tickRate)
+	next := timeperiod.From(getTime()).Next().Time()
 
 	for {
 		select {
@@ -210,7 +201,7 @@ func (t *Cache) run() {
 			return
 		case <-t.ticker.C:
 			// This fires every second
-			now := util.GetTime()
+			now := getTime()
 			if now.Equal(next) || now.After(next) {
 				go t.update(next)
 				next = timeperiod.From(now).Next().Time()
@@ -220,7 +211,7 @@ func (t *Cache) run() {
 
 }
 
-func (t *Cache) update(now time.Time) {
+func (t *KeytabCache) update(now time.Time) {
 
 	zap.L().Debug("Running updated")
 
@@ -297,16 +288,16 @@ func (t *keytabWrapper) update(now time.Time) {
 
 func (t *keytabWrapper) getChar(b byte) byte {
 	bint := int(b)
-	charsetlen := len(passwordCharset)
+	charsetlen := len(keytabPasswordCharset)
 	if int(b) < charsetlen {
-		return passwordCharset[bint]
+		return keytabPasswordCharset[bint]
 	}
 	_, r := bint/charsetlen, bint%charsetlen
-	return passwordCharset[r]
+	return keytabPasswordCharset[r]
 }
 
 // GetKeytab Returns Keytab if keytab exist.
-func (t *Cache) GetKeytab(principal string) (*libtokenmachine.Keytab, error) {
+func (t *KeytabCache) GetKeytab(principal string) (*libtokenmachine.Keytab, error) {
 
 	if principal == "" {
 		zap.L().Debug("principal is empty")
@@ -454,7 +445,7 @@ func (t *keytabWrapper) unixNewKeytab(password string) (string, error) {
 }
 
 // Shutdown shutdown
-func (t *Cache) Shutdown() {
+func (t *KeytabCache) Shutdown() {
 	zap.L().Info(fmt.Sprintf("Stopping"))
 	close(t.closeTimer)
 	t.wg.Wait()

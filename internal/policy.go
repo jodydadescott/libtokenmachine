@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package policy
+package internal
 
 import (
 	"context"
@@ -25,18 +25,26 @@ import (
 	"go.uber.org/zap"
 )
 
-// Config config
-type Config struct {
+// Policy policy
+type Policy struct {
+	Claims    interface{} `json:"claims,omitempty" yaml:"claims,omitempty"`
+	Nonces    []string    `json:"nonces,omitempty" yaml:"nonces,omitempty"`
+	Principal string      `json:"principal,omitempty" yaml:"principal,omitempty"`
+	Secret    string      `json:"secret,omitempty" yaml:"secret,omitempty"`
+}
+
+// PolicyConfig config
+type PolicyConfig struct {
 	Policy string
 }
 
-// Policy ...
-type Policy struct {
+// PolicyEngine ...
+type PolicyEngine struct {
 	query rego.PreparedEvalQuery
 }
 
 // Build ...
-func (config *Config) Build() (*Policy, error) {
+func (config *PolicyConfig) Build() (*PolicyEngine, error) {
 
 	if config.Policy == "" {
 		return nil, fmt.Errorf("Policy is required")
@@ -53,15 +61,15 @@ func (config *Config) Build() (*Policy, error) {
 		return nil, err
 	}
 
-	return &Policy{
+	return &PolicyEngine{
 		query: query,
 	}, nil
 }
 
 // AuthGetNonce Auth that claims are allowed to get nonce
-func (t *Policy) AuthGetNonce(ctx context.Context, claims map[string]interface{}) error {
+func (t *PolicyEngine) AuthGetNonce(ctx context.Context, claims map[string]interface{}) error {
 
-	input := &Input{
+	input := &Policy{
 		Claims: claims,
 	}
 
@@ -89,11 +97,11 @@ func (t *Policy) AuthGetNonce(ctx context.Context, claims map[string]interface{}
 }
 
 // AuthGetKeytab Auth that claims, nonce and principals are allowed to get requested keytab
-func (t *Policy) AuthGetKeytab(ctx context.Context, claims map[string]interface{}, nonce, principal string) error {
+func (t *PolicyEngine) AuthGetKeytab(ctx context.Context, claims map[string]interface{}, nonces []string, principal string) error {
 
-	input := &Input{
+	input := &Policy{
 		Claims:    claims,
-		Nonce:     nonce,
+		Nonces:    nonces,
 		Principal: principal,
 	}
 
@@ -121,11 +129,11 @@ func (t *Policy) AuthGetKeytab(ctx context.Context, claims map[string]interface{
 }
 
 // AuthGetSecret Auth request for secret
-func (t *Policy) AuthGetSecret(ctx context.Context, claims map[string]interface{}, nonce, name string) error {
+func (t *PolicyEngine) AuthGetSecret(ctx context.Context, claims map[string]interface{}, nonces []string, name string) error {
 
-	input := &Input{
+	input := &Policy{
 		Claims: claims,
-		Nonce:  nonce,
+		Nonces: nonces,
 		Secret: name,
 	}
 

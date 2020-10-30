@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nonce
+package internal
 
 import (
 	"fmt"
@@ -26,26 +26,18 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	charset = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-	defaultCacheRefreshInterval = time.Duration(30) * time.Second
-	defaultLifetime             = time.Duration(60) * time.Second
-)
-
-// Config Config
-type Config struct {
+// NonceConfig Config
+type NonceConfig struct {
 	CacheRefreshInterval, Lifetime time.Duration
 }
 
-// Cache Manages nonces. For our purposes a nonce is defined as a random
+// NonceCache Manages nonces. For our purposes a nonce is defined as a random
 // string with an expiration time. Upon request a new nonce is generated
 // and returned along with the expiration time to the caller. This allows
 // the caller to hand the nonce to a remote party. The remote party can then
 // present the nonce back in the future (before the expiration time is reached)
 // and the nonce can be validated that it originated with us.
-type Cache struct {
+type NonceCache struct {
 	mutex      sync.RWMutex
 	internal   map[string]*libtokenmachine.Nonce
 	closed     chan struct{}
@@ -56,12 +48,12 @@ type Cache struct {
 }
 
 // Build Returns a new Cache
-func (config *Config) Build() (*Cache, error) {
+func (config *NonceConfig) Build() (*NonceCache, error) {
 
 	zap.L().Debug("Starting")
 
 	cacheRefreshInterval := defaultCacheRefreshInterval
-	lifetime := defaultLifetime
+	lifetime := nonceDefaultLifetime
 
 	if config.CacheRefreshInterval > 0 {
 		cacheRefreshInterval = config.CacheRefreshInterval
@@ -71,7 +63,7 @@ func (config *Config) Build() (*Cache, error) {
 		lifetime = config.Lifetime
 	}
 
-	t := &Cache{
+	t := &NonceCache{
 		internal: make(map[string]*libtokenmachine.Nonce),
 		closed:   make(chan struct{}),
 		ticker:   time.NewTicker(cacheRefreshInterval),
@@ -85,7 +77,7 @@ func (config *Config) Build() (*Cache, error) {
 	return t, nil
 }
 
-func (t *Cache) run() {
+func (t *NonceCache) run() {
 	t.wg.Add(1)
 	for {
 		select {
@@ -99,7 +91,7 @@ func (t *Cache) run() {
 	}
 }
 
-func (t *Cache) cleanup() {
+func (t *NonceCache) cleanup() {
 
 	zap.L().Debug("Running cleanup")
 
@@ -128,11 +120,11 @@ func (t *Cache) cleanup() {
 }
 
 // NewNonce Returns a new nonce
-func (t *Cache) NewNonce() (*libtokenmachine.Nonce, error) {
+func (t *NonceCache) NewNonce() (*libtokenmachine.Nonce, error) {
 
 	b := make([]byte, 64)
 	for i := range b {
-		b[i] = charset[t.seededRand.Intn(len(charset))]
+		b[i] = nonceCharset[t.seededRand.Intn(len(nonceCharset))]
 	}
 
 	nonce := &libtokenmachine.Nonce{
@@ -149,32 +141,24 @@ func (t *Cache) NewNonce() (*libtokenmachine.Nonce, error) {
 	return nonce.Copy(), nil
 }
 
-// GetNonce returns nonce if found and not expired
-func (t *Cache) GetNonce(key string) (*libtokenmachine.Nonce, error) {
+// GetNonceValues returns slice of all valid nonce values
+func (t *NonceCache) GetNonceValues() []string {
 
-	if key == "" {
-		zap.L().Debug("Request for empty nonce")
-		return nil, libtokenmachine.ErrNotFound
-	}
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
 
-	nonce, exist := t.internal[key]
-	if exist {
-		if time.Now().Unix() > nonce.Exp {
-			zap.L().Debug(fmt.Sprintf("Nonce expired; nonce key:%s", key))
-			return nil, libtokenmachine.ErrExpired
+	var nonces []string
+	for _, nonce := range t.internal {
+		if time.Now().Unix() < nonce.Exp {
+			nonces = append(nonces, nonce.Value)
 		}
-		// Func is exported. Return clone to untrusted outsiders
-		zap.L().Debug(fmt.Sprintf("Nonce found and not expired; nonce key:%s", key))
-		return nonce.Copy(), nil
 	}
 
-	zap.L().Debug(fmt.Sprintf("Nonce not found; nonce key:%s", key))
-	return nil, libtokenmachine.ErrNotFound
-
+	return nonces
 }
 
 // Shutdown shutdowns the cache map
-func (t *Cache) Shutdown() {
+func (t *NonceCache) Shutdown() {
 	zap.L().Debug("Stopping")
 	close(t.closed)
 	t.wg.Wait()

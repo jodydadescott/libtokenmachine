@@ -66,7 +66,7 @@ func (t *PubKeyDummyCache) GetKey(iss, kid string) (*PublicKey, error) {
 
 	key, exist := t.internal[iss+":"+kid]
 	if exist {
-		return key.Copy(), nil
+		return key, nil
 	}
 
 	return nil, libtokenmachine.ErrNotFound

@@ -23,27 +23,26 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-// Keytab contain credentials in the form of a username (or principal) and an
-// encrypted password. Keytabs are used to prove identity specifically for
-// services and scripts.
-type Keytab struct {
+// SharedSecret Holds a secret. Both state and config.
+type SharedSecret struct {
 	Name       string        `json:"name,omitempty" yaml:"name,omitempty"`
-	Principal  string        `json:"principal,omitempty" yaml:"principal,omitempty"`
 	Seed       string        `json:"seed,omitempty" yaml:"seed,omitempty"`
-	Base64File string        `json:"base64file,omitempty" yaml:"base64file,omitempty"`
-	Exp        int64         `json:"exp,omitempty" yaml:"exp,omitempty"`
 	Lifetime   time.Duration `json:"lifetime,omitempty" yaml:"lifetime,omitempty"`
+	Exp        int64         `json:"exp,omitempty" yaml:"exp,omitempty"`
+	Secret     string        `json:"secret,omitempty" yaml:"secret,omitempty"`
+	NextExp    int64         `json:"nextExp,omitempty" yaml:"nextExp,omitempty"`
+	NextSecret string        `json:"nextSecret,omitempty" yaml:"nextSecret,omitempty"`
 }
 
 // JSON Return JSON String representation
-func (t *Keytab) JSON() string {
+func (t *SharedSecret) JSON() string {
 	j, _ := json.Marshal(t)
 	return string(j)
 }
 
 // Copy return copy of entity
-func (t *Keytab) Copy() *Keytab {
-	c := &Keytab{}
+func (t *SharedSecret) Copy() *SharedSecret {
+	c := &SharedSecret{}
 	copier.Copy(&c, &t)
 	return c
 }

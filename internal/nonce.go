@@ -93,7 +93,7 @@ func (t *NonceCache) run() {
 
 func (t *NonceCache) cleanup() {
 
-	zap.L().Debug("Running cleanup")
+	zap.L().Debug("Running Nonce cleanup")
 
 	var removes []string
 	t.mutex.Lock()
@@ -102,11 +102,8 @@ func (t *NonceCache) cleanup() {
 	for key, e := range t.internal {
 		if time.Now().Unix() > e.Exp {
 			removes = append(removes, key)
-			zap.L().Info(fmt.Sprintf("Ejecting->%s", e.JSON()))
+			zap.L().Info(fmt.Sprintf("Ejecting Nonce->%s", e.JSON()))
 		}
-		// else {
-		// 	zap.L().Debug(fmt.Sprintf("Preserving->%s", e.JSON()))
-		// }
 	}
 
 	if len(removes) > 0 {
@@ -115,8 +112,7 @@ func (t *NonceCache) cleanup() {
 		}
 	}
 
-	zap.L().Debug("Cleanup completed")
-
+	zap.L().Debug("Completed Nonce cleanup")
 }
 
 // NewNonce Returns a new nonce
@@ -138,7 +134,7 @@ func (t *NonceCache) NewNonce() (*libtokenmachine.Nonce, error) {
 	t.internal[nonce.Value] = nonce
 
 	// Func is exported. Return clone to untrusted outsiders
-	return nonce.Copy(), nil
+	return nonce, nil
 }
 
 // GetNonceValues returns slice of all valid nonce values

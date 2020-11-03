@@ -36,7 +36,7 @@ func (t *Nonce) JSON() string {
 
 // Copy return copy
 func (t *Nonce) Copy() *Nonce {
-	clone := &Nonce{}
-	copier.Copy(&clone, &t)
-	return clone
+	c := &Nonce{}
+	copier.Copy(&c, &t)
+	return c
 }

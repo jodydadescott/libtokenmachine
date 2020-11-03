@@ -121,7 +121,7 @@ func (t *TokenCache) ParseToken(tokenString string) (*libtokenmachine.Token, err
 			return nil, libtokenmachine.ErrExpired
 		}
 
-		return token.Copy(), nil
+		return token, nil
 	}
 
 	var err error
@@ -215,12 +215,12 @@ func (t *TokenCache) ParseToken(tokenString string) (*libtokenmachine.Token, err
 
 	t.mapPutToken(tokenString, token)
 	zap.L().Debug(fmt.Sprintf("Token %s added to cache", tokenString))
-	return token.Copy(), nil
+	return token, nil
 }
 
 func (t *TokenCache) cleanup() {
 
-	zap.L().Debug("Running cleanup")
+	zap.L().Debug("Running Token cleanup")
 
 	var removes []string
 	t.tokenMapMutex.Lock()
@@ -230,9 +230,7 @@ func (t *TokenCache) cleanup() {
 
 		if time.Now().Unix() > e.Exp {
 			removes = append(removes, key)
-			zap.L().Info(fmt.Sprintf("Ejecting->%s", e.JSON()))
-		} else {
-			zap.L().Debug(fmt.Sprintf("Preserving->%s", e.JSON()))
+			zap.L().Info(fmt.Sprintf("Ejecting Token->%s", e.JSON()))
 		}
 	}
 
@@ -242,7 +240,7 @@ func (t *TokenCache) cleanup() {
 		}
 	}
 
-	zap.L().Debug("Cleanup completed")
+	zap.L().Debug("Completed Token cleanup")
 
 }
 

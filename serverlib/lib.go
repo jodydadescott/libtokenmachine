@@ -145,37 +145,37 @@ func (t *TokenMachineServer) GetNonce(ctx context.Context, tokenString string) (
 	}
 
 	zap.L().Debug(fmt.Sprintf("GetNonce(tokenString=%s)->%s", tokenString, "Granted"))
-	return nonce, nil
+	return nonce.Copy(), nil
 }
 
 // GetKeytab returns Keytab if provided token is authorized
-func (t *TokenMachineServer) GetKeytab(ctx context.Context, tokenString, principal string) (*libtokenmachine.Keytab, error) {
+func (t *TokenMachineServer) GetKeytab(ctx context.Context, tokenString, name string) (*libtokenmachine.Keytab, error) {
 
 	token, err := t.token.ParseToken(tokenString)
 	if err != nil {
-		zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,principal=%s)->%s", tokenString, principal, "Error:"+err.Error()))
+		zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,name=%s)->%s", tokenString, name, "Error:"+err.Error()))
 		return nil, err
 	}
 
-	err = t.policy.AuthGetKeytab(ctx, token.Claims, t.nonce.GetNonceValues(), principal)
+	err = t.policy.AuthGetKeytab(ctx, token.Claims, t.nonce.GetNonceValues(), name)
 	if err != nil {
-		zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,principal=%s)->%s", tokenString, principal, "Error:"+err.Error()))
+		zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,name=%s)->%s", tokenString, name, "Error:"+err.Error()))
 		return nil, err
 	}
 
-	keytab, err := t.keytab.GetKeytab(principal)
+	keytab, err := t.keytab.GetKeytab(name)
 
 	if err != nil {
-		zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,principal=%s)->%s", tokenString, principal, "Error:"+err.Error()))
+		zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,name=%s)->%s", tokenString, name, "Error:"+err.Error()))
 		return nil, err
 	}
 
-	zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,principal=%s)->%s", tokenString, principal, "Granted"))
-	return keytab, nil
+	zap.L().Debug(fmt.Sprintf("GetKeytab(tokenString=%s,name=%s)->%s", tokenString, name, "Granted"))
+	return keytab.Copy(), nil
 }
 
 // GetSecret returns Secret if provided token is authorized
-func (t *TokenMachineServer) GetSecret(ctx context.Context, tokenString, name string) (*libtokenmachine.Secret, error) {
+func (t *TokenMachineServer) GetSecret(ctx context.Context, tokenString, name string) (*libtokenmachine.SharedSecret, error) {
 
 	token, err := t.token.ParseToken(tokenString)
 	if err != nil {
@@ -196,5 +196,5 @@ func (t *TokenMachineServer) GetSecret(ctx context.Context, tokenString, name st
 	}
 
 	zap.L().Debug(fmt.Sprintf("GetSecret(tokenString=%s,name=%s)->%s", tokenString, name, "Granted"))
-	return secret, nil
+	return secret.Copy(), nil
 }

@@ -29,7 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jinzhu/copier"
 	"github.com/jodydadescott/libtokenmachine"
 	"go.uber.org/zap"
 )
@@ -47,13 +46,6 @@ type PublicKey struct {
 func (t *PublicKey) JSON() string {
 	j, _ := json.Marshal(t)
 	return string(j)
-}
-
-// Copy return copy
-func (t *PublicKey) Copy() *PublicKey {
-	clone := &PublicKey{}
-	copier.Copy(&clone, &t)
-	return clone
 }
 
 // PublicKeyConfig The config
@@ -127,7 +119,7 @@ func (t *PublicKeyCache) run() {
 
 func (t *PublicKeyCache) cleanup() {
 
-	zap.L().Debug("Running cleanup")
+	zap.L().Debug("Running PublicKey cleanup")
 
 	var removes []string
 	t.mutex.Lock()
@@ -136,11 +128,8 @@ func (t *PublicKeyCache) cleanup() {
 	for key, e := range t.internal {
 		if time.Now().Unix() > e.Exp {
 			removes = append(removes, key)
-			zap.L().Info(fmt.Sprintf("Ejecting->%s", e.JSON()))
+			zap.L().Info(fmt.Sprintf("Ejecting PublicKey->%s", e.JSON()))
 		}
-		// else {
-		// 	zap.L().Debug(fmt.Sprintf("Preserving->%s", e.JSON()))
-		// }
 	}
 
 	if len(removes) > 0 {
@@ -149,12 +138,12 @@ func (t *PublicKeyCache) cleanup() {
 		}
 	}
 
-	zap.L().Debug("Cleanup completed")
+	zap.L().Debug("Completed PublicKey cleanup")
 
 }
 
 // GetKey Returns PublicKey from cache if found. If not gets PublicKey from
-// validated issuer, stores in cache and returns copy
+// validated issuer, stores in cache and returns
 func (t *PublicKeyCache) GetKey(iss, kid string) (*PublicKey, error) {
 
 	key := iss + ":" + kid
@@ -164,7 +153,7 @@ func (t *PublicKeyCache) GetKey(iss, kid string) (*PublicKey, error) {
 	publicKey, exist := t.internal[key]
 	if exist {
 		t.mutex.RUnlock()
-		return publicKey.Copy(), nil
+		return publicKey, nil
 	}
 
 	t.mutex.RUnlock()
@@ -174,7 +163,7 @@ func (t *PublicKeyCache) GetKey(iss, kid string) (*PublicKey, error) {
 
 	publicKey, exist = t.internal[key]
 	if exist {
-		return publicKey.Copy(), nil
+		return publicKey, nil
 	}
 
 	openIDConfiguration, err := t.getOpenIDConfiguration(iss)
@@ -196,8 +185,7 @@ func (t *PublicKeyCache) GetKey(iss, kid string) (*PublicKey, error) {
 							t.internal[key] = publicKey
 
 							zap.L().Debug(fmt.Sprintf("key for iss %s and kid %s created and added to cache", iss, kid))
-							// Export function; return copy
-							return publicKey.Copy(), nil
+							return publicKey, nil
 						}
 						zap.L().Error(err.Error())
 					}

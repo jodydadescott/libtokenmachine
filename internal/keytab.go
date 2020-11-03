@@ -26,7 +26,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
 	"sync"
 	"time"
@@ -37,52 +36,19 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	keytabRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-)
-
 // KeytabConfig Config
-//
-// Seed: A shared secret that the password for a keytab is generated from
-//
-// Principals: Zero or more principlas Kerberos principals (or usernames)
-//
-// TimePeriod: Time Period for Keytab Renewals
 type KeytabConfig struct {
-	Keytabs           []*libtokenmachine.Keytab
-	TickRate          time.Duration
-	Lifetime          time.Duration
-	LogHashedPassword bool // useful for debugging
+	Keytabs  []*libtokenmachine.Keytab
+	TickRate time.Duration
+	Lifetime time.Duration
 }
 
-// KeytabCache holds and manages Kerberos Keytabs. Keytabs are generated or
-// regenerated based on user specified intervals using the UNIX
-// cron format. When multiple instances of the server are ran the cron
-// interval should be configured the same. When keytabs are generated
-// or regenerated the password is set based on the Seed value and the
-// principal name. Only Principals specified in the Principals slice
-// will be generated.
-//
-// Keytab generation operates indepedentely from Keytab request. When
-// a Keytab is requested it will be allocated regardless of the time
-// remaining until the next regeneration. For example if a Keytab is
-// requested that only has 5 seconds left before regeneration it will
-// be returned. This may not be enough time for the client to obtain
-// a Kerberos ticket. The renewal period is provided as an expiration
-// field in the Keytab. This allows the client to determine of enough
-// time remains to obtain the Kerberos ticket and act accordingly by
-// for example requesting the Keytab again after the renewal.
-//
-// When operated in a multi-server configuration it is important that the
-// cron renewal period is identical and that the clocks are synchronized.
-// Additionally the Seed must match.
-//
-// The password is derived from the Seed based on the request time. To
-// keep the passwords synchronized the requesting time is set based on the
-// cron period. When the server is initially started the next and previous
-// periods are calculated. If they differ by more then 30 seconds then
-// the Keytabs are generated using the previous period. Otherwise they
-// will be created when the next period arrives.
+// KeytabCache holds and manages Kerberos Keytabs. Keytab files are generated using
+// a password derived from the current time period and per Keytab seed. Keytabs
+// are generated at the top of the period. It is possible to have multiple instance
+// of this with no communication required between the instances and no conflict if the
+// seed is configure the same and the clocks are synchronized from an accurate (or same)
+// source.
 type KeytabCache struct {
 	closeTimer chan struct{}
 	wg         sync.WaitGroup
@@ -94,12 +60,12 @@ type KeytabCache struct {
 }
 
 type keytabWrapper struct {
-	mutex           sync.RWMutex
-	nextUpdate      time.Time
-	principal, seed string
-	keytab          *libtokenmachine.Keytab
-	err             error
-	timePeriod      *TimePeriod
+	mutex                 sync.RWMutex
+	nextUpdate            time.Time
+	name, principal, seed string
+	keytab                *libtokenmachine.Keytab
+	err                   error
+	timePeriod            *TimePeriod
 }
 
 // Build Returns new instance of Keytabs
@@ -146,19 +112,28 @@ func (t *KeytabCache) init(config *KeytabConfig) error {
 	defer t.mutex.Unlock()
 
 	for _, keytab := range config.Keytabs {
+
+		if keytab.Name == "" {
+			return fmt.Errorf("Keytab name is required")
+		}
+
+		if keytab.Principal == "" {
+			return fmt.Errorf("Keytab %s is missing required principal", keytab.Name)
+		}
+
 		if len(keytab.Principal) < 3 && len(keytab.Principal) > 254 {
 			if len(keytab.Principal) < 3 {
-				return fmt.Errorf("Keytab principal %s is to short", keytab.Principal)
+				return fmt.Errorf("Keytab %s principal %s is to short", keytab.Name, keytab.Principal)
 			}
-			return fmt.Errorf("Keytab principal %s is to long", keytab.Principal)
+			return fmt.Errorf("Keytab %s principal %s is to long", keytab.Name, keytab.Principal)
 		}
 
 		if !keytabRegex.MatchString(keytab.Principal) {
-			return fmt.Errorf("Keytab principal %s is invalid", keytab.Principal)
+			return fmt.Errorf("Keytab %s principal %s is invalid", keytab.Name, keytab.Name)
 		}
 
 		if keytab.Seed == "" {
-			return fmt.Errorf("Keytab %s is missing required seed", keytab.Principal)
+			return fmt.Errorf("Keytab %s is missing required seed", keytab.Name)
 		}
 
 		seed := base32.StdEncoding.EncodeToString([]byte(keytab.Seed))
@@ -171,19 +146,19 @@ func (t *KeytabCache) init(config *KeytabConfig) error {
 
 		// Lifetime less then a minute requires to much resources and does not make much sense
 		if t.tickRate > lifetime {
-			return fmt.Errorf(fmt.Sprintf("Keytab %s lifetime of %s less then tickrate of %s", keytab.Principal, lifetime, t.tickRate))
+			return fmt.Errorf(fmt.Sprintf("Keytab %s lifetime of %s less then tickrate of %s", keytab.Name, lifetime, t.tickRate))
 		}
 
-		t.internal[keytab.Principal] = &keytabWrapper{
+		t.internal[keytab.Name] = &keytabWrapper{
+			name:       keytab.Name,
 			principal:  keytab.Principal,
 			timePeriod: NewPeriod(lifetime),
 			seed:       seed,
 		}
-		zap.L().Debug(fmt.Sprintf("Loaded principal %s with lifetime of %s", keytab.Principal, lifetime))
+		zap.L().Debug(fmt.Sprintf("Loaded Keytab %s with lifetime of %s", keytab.Name, lifetime))
 	}
 
 	return nil
-
 }
 
 func (t *KeytabCache) run() {
@@ -192,7 +167,13 @@ func (t *KeytabCache) run() {
 
 	// TimePeriod based on tick rate
 	timeperiod := NewPeriod(t.tickRate)
-	next := timeperiod.From(getTime()).Next().Time()
+	nowPeriod := timeperiod.From(getTime())
+	nextPeriod := nowPeriod.Next()
+
+	next := nextPeriod.Time()
+
+	// On start create Keytabs with the top of the current period
+	go t.firstRun(nowPeriod.Time())
 
 	for {
 		select {
@@ -211,9 +192,9 @@ func (t *KeytabCache) run() {
 
 }
 
-func (t *KeytabCache) update(now time.Time) {
+func (t *KeytabCache) firstRun(now time.Time) {
 
-	zap.L().Debug("Running updated")
+	zap.L().Debug("Running Keytab initial creation")
 
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
@@ -221,7 +202,20 @@ func (t *KeytabCache) update(now time.Time) {
 		go wrapper.update(now)
 	}
 
-	zap.L().Debug("Update completed")
+	zap.L().Debug("Completed Keytab initial creation")
+}
+
+func (t *KeytabCache) update(now time.Time) {
+
+	zap.L().Debug("Running Keytab update")
+
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
+	for _, wrapper := range t.internal {
+		go wrapper.update(now)
+	}
+
+	zap.L().Debug("Completed Keytab update")
 }
 
 func (t *keytabWrapper) update(now time.Time) {
@@ -297,17 +291,17 @@ func (t *keytabWrapper) getChar(b byte) byte {
 }
 
 // GetKeytab Returns Keytab if keytab exist.
-func (t *KeytabCache) GetKeytab(principal string) (*libtokenmachine.Keytab, error) {
+func (t *KeytabCache) GetKeytab(name string) (*libtokenmachine.Keytab, error) {
 
-	if principal == "" {
-		zap.L().Debug("principal is empty")
+	if name == "" {
+		zap.L().Debug("Keytab name is empty")
 		return nil, libtokenmachine.ErrNotFound
 	}
 
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
 
-	if wrapper, exist := t.internal[principal]; exist {
+	if wrapper, exist := t.internal[name]; exist {
 
 		wrapper.mutex.RLock()
 		defer wrapper.mutex.RUnlock()
@@ -315,17 +309,17 @@ func (t *KeytabCache) GetKeytab(principal string) (*libtokenmachine.Keytab, erro
 		// Export function; returning copy
 		if wrapper.keytab == nil {
 			if wrapper.err == nil {
-				zap.L().Debug(fmt.Sprintf("Keytab %s has not been processed yet", principal))
+				zap.L().Debug(fmt.Sprintf("Keytab %s has not been processed yet", name))
 				return nil, libtokenmachine.ErrNotFound
 			}
-			zap.L().Debug(fmt.Sprintf("Keytab %s not generated due to error; err->%s", principal, wrapper.err.Error()))
+			zap.L().Debug(fmt.Sprintf("Keytab %s not generated due to error; err->%s", name, wrapper.err.Error()))
 			return nil, libtokenmachine.ErrServerFail
 		}
 
-		return wrapper.keytab.Copy(), nil
+		return wrapper.keytab, nil
 	}
 
-	zap.L().Debug(fmt.Sprintf("Keytab %s does not exist", principal))
+	zap.L().Debug(fmt.Sprintf("Keytab %s does not exist", name))
 	return nil, libtokenmachine.ErrNotFound
 }
 

@@ -16,7 +16,10 @@ limitations under the License.
 
 package internal
 
-import "time"
+import (
+	"regexp"
+	"time"
+)
 
 const (
 	defaultCacheRefreshInterval = time.Duration(30) * time.Second
@@ -37,4 +40,8 @@ const (
 	secretDefaultLifetime = time.Duration(12) * time.Hour
 	secretCharset         = "abcdefghijklmnopqrstuvwxyz" +
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@!"
+)
+
+var (
+	keytabRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )

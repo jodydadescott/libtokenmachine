@@ -22,6 +22,14 @@ import (
 
 func TestKeytab1(t *testing.T) {
 
+	// config := &KeytabConfig{
+	// 	TickRate: time.Duration(10) * time.Second,
+	// 	Lifetime: time.Duration(60) * time.Second,
+	// 	Keytabs: {}
+	// }
+
+	//	Keytabs  []*libtokenmachine.Keytab
+
 	// var principals []string
 	// principals = append(principals, "bob@example.com")
 	// principals = append(principals, "alice@example.com")

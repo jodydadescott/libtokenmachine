@@ -25,5 +25,5 @@ type LibTokenMachine interface {
 	Shutdown()
 	GetNonce(ctx context.Context, tokenString string) (*Nonce, error)
 	GetKeytab(ctx context.Context, tokenString, principal string) (*Keytab, error)
-	GetSecret(ctx context.Context, tokenString, name string) (*Secret, error)
+	GetSecret(ctx context.Context, tokenString, name string) (*SharedSecret, error)
 }

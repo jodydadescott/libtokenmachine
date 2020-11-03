@@ -23,8 +23,8 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-// Secret Holds a secret. Both state and config.
-type Secret struct {
+// SharedSecret Holds a secret. Both state and config.
+type SharedSecret struct {
 	Name       string        `json:"name,omitempty" yaml:"name,omitempty"`
 	Seed       string        `json:"seed,omitempty" yaml:"seed,omitempty"`
 	Lifetime   time.Duration `json:"lifetime,omitempty" yaml:"lifetime,omitempty"`
@@ -35,14 +35,14 @@ type Secret struct {
 }
 
 // JSON Return JSON String representation
-func (t *Secret) JSON() string {
+func (t *SharedSecret) JSON() string {
 	j, _ := json.Marshal(t)
 	return string(j)
 }
 
-// Clone return copy of entity
-func (t *Secret) Clone() *Secret {
-	clone := &Secret{}
+// Copy return copy of entity
+func (t *SharedSecret) Copy() *SharedSecret {
+	clone := &SharedSecret{}
 	copier.Copy(&clone, &t)
 	return clone
 }

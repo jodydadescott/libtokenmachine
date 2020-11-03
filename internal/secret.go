@@ -31,7 +31,7 @@ import (
 
 // SecretConfig Config
 type SecretConfig struct {
-	Secrets  []*libtokenmachine.Secret
+	Secrets  []*libtokenmachine.SharedSecret
 	Lifetime time.Duration
 }
 
@@ -76,7 +76,7 @@ func (config *SecretConfig) Build() (*SecretCache, error) {
 	return t, nil
 }
 
-func (t *SecretCache) loadSecrets(secrets []*libtokenmachine.Secret) error {
+func (t *SecretCache) loadSecrets(secrets []*libtokenmachine.SharedSecret) error {
 
 	if secrets == nil || len(secrets) <= 0 {
 		zap.L().Warn("No secrets to load?")
@@ -94,7 +94,7 @@ func (t *SecretCache) loadSecrets(secrets []*libtokenmachine.Secret) error {
 	return nil
 }
 
-func (t *SecretCache) addSecret(secret *libtokenmachine.Secret) error {
+func (t *SecretCache) addSecret(secret *libtokenmachine.SharedSecret) error {
 
 	// Must have map locked!
 
@@ -128,7 +128,7 @@ func (t *SecretCache) addSecret(secret *libtokenmachine.Secret) error {
 }
 
 // GetSecret Returns secret if found and authorized
-func (t *SecretCache) GetSecret(name string) (*libtokenmachine.Secret, error) {
+func (t *SecretCache) GetSecret(name string) (*libtokenmachine.SharedSecret, error) {
 
 	if name == "" {
 		zap.L().Debug("name is empty")
@@ -165,7 +165,7 @@ func (t *SecretCache) GetSecret(name string) (*libtokenmachine.Secret, error) {
 		return nil, err
 	}
 
-	result := &libtokenmachine.Secret{
+	result := &libtokenmachine.SharedSecret{
 		Exp:    nowPeriod.Time().Unix(),
 		Secret: nowsecret,
 	}
@@ -209,13 +209,13 @@ func (t *secretWrapper) getSecretString(now time.Time) (string, error) {
 
 	b := make([]byte, 28)
 	for i := range b {
-		b[i] = getChar(hash[i])
+		b[i] = t.getChar(hash[i])
 	}
 
 	return string(b), nil
 }
 
-func getChar(b byte) byte {
+func (t *secretWrapper) getChar(b byte) byte {
 	bint := int(b)
 	charsetlen := len(secretCharset)
 	if int(b) < charsetlen {

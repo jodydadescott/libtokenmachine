@@ -100,13 +100,13 @@ func (t *NonceCache) cleanup() {
 	defer t.mutex.Unlock()
 
 	for key, e := range t.internal {
-
 		if time.Now().Unix() > e.Exp {
 			removes = append(removes, key)
 			zap.L().Info(fmt.Sprintf("Ejecting->%s", e.JSON()))
-		} else {
-			zap.L().Debug(fmt.Sprintf("Preserving->%s", e.JSON()))
 		}
+		// else {
+		// 	zap.L().Debug(fmt.Sprintf("Preserving->%s", e.JSON()))
+		// }
 	}
 
 	if len(removes) > 0 {

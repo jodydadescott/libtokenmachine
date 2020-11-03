@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func Test1(t *testing.T) {
+func TestKeytab1(t *testing.T) {
 
 	// var principals []string
 	// principals = append(principals, "bob@example.com")

@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func Test1(t *testing.T) {
+func TestNonce1(t *testing.T) {
 
 	var err error
 

@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-func Test1(t *testing.T) {
+func TestTimePeriod1(t *testing.T) {
 
 	epochPeriod := NewPeriod(time.Duration(2) * time.Minute)
 	now := time.Date(2020, 3, 12, 14, 10, 0, 0, time.UTC)
@@ -48,7 +48,7 @@ func Test1(t *testing.T) {
 
 }
 
-func Test2(t *testing.T) {
+func TestTimePeriod2(t *testing.T) {
 
 	epochPeriod := NewPeriod(time.Duration(12) * time.Minute)
 	now := time.Date(2022, 1, 12, 18, 10, 0, 0, time.UTC)
@@ -74,7 +74,7 @@ func Test2(t *testing.T) {
 
 }
 
-func Test3(t *testing.T) {
+func TestTimePeriod3(t *testing.T) {
 
 	epochPeriod := NewPeriod(time.Duration(2) * time.Hour)
 	now := time.Date(2022, 1, 19, 18, 13, 0, 0, time.UTC)
@@ -100,7 +100,7 @@ func Test3(t *testing.T) {
 
 }
 
-func Test4(t *testing.T) {
+func TestTimePeriod4(t *testing.T) {
 
 	epochPeriod := NewPeriod(time.Duration(1) * time.Hour).From(time.Date(2022, 1, 19, 18, 0, 0, 0, time.UTC))
 

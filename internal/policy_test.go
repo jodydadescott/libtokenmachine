@@ -20,8 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-
-	"github.com/open-policy-agent/opa/rego"
 )
 
 var (
@@ -79,31 +77,24 @@ var (
 `
 )
 
-func Test1(t *testing.T) {
+func TestPolicy1(t *testing.T) {
 
 	var claims map[string]interface{}
 
 	// Unmarshal or Decode the JSON to the interface.
 	json.Unmarshal([]byte(exampleInput), &claims)
 
+	config := &PolicyConfig{
+		Policy: examplePolicy,
+	}
+
 	ctx := context.Background()
 
-	query, err := rego.New(
-		rego.Query("auth_get_nonce = data.main.auth_get_nonce; auth_get_keytab = data.main.auth_get_keytab; auth_get_secret = data.main.auth_get_secret"),
-		rego.Module("kerberos.rego", examplePolicy),
-	).PrepareForEval(ctx)
+	policy, err := config.Build()
 
 	if err != nil {
 		t.Errorf("Unexpected error:%s", err)
 		return
-	}
-
-	policy := &Policy{
-		query: query,
-	}
-
-	if err != nil {
-		t.Errorf("Unexpected error:%s", err)
 	}
 
 	err = policy.AuthGetNonce(ctx, claims)

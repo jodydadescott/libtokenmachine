@@ -24,42 +24,49 @@ import (
 
 var (
 	examplePolicy = `
-	package main
+package main
 
-	default auth_get_nonce = false
-	default auth_get_keytab = false
-	default auth_get_secret = false
-	
-	auth_base {
-	   # Match Issuer
-	   input.claims.iss == "abc123"
-	}
-	
-	auth_get_nonce {
-	   auth_base
-	}
-	
-	auth_nonce {
-	   # The input contains a set of all of the current valid nonces. For our
-	   # example here we expect the claim audience to have a nonce that will match
-	   # one of tne entries in the nonces set.
-	   input.nonces[_] == input.claims.aud
-	}
-	
-	auth_get_keytab {
-	   # The nonce must be validated and then the principal. This is done by splitting the
-	   # principals in the claim service.keytab by the comma into a set and checking for
-	   # match with requested principal
-	   auth_base
-	   auth_nonce
-	   split(input.claims.service.keytabs,",")[_] == input.name
-	}
-	
-	auth_get_secret {
-	   auth_base
-	   auth_nonce
-	   input.claims.service.secrets[_] == input.name
-	}
+default auth_get_nonce = false
+default auth_get_keytab = false
+default auth_get_secret = false
+
+auth_base {
+   # Match Issuer
+   input.claims.iss == "abc123"
+}
+
+auth_get_nonce {
+   auth_base
+}
+
+auth_nonce {
+   # The input contains a set of all of the current valid nonces. For our
+   # example here we expect the claim audience to have a nonce that will match
+   # one of tne entries in the nonces set.
+   input.nonces[_] == input.claims.aud
+}
+
+auth_get_keytab {
+   # 1) Validate defaults with auth_base
+   # 2) Validate the nonce with auth_nonce
+   # 3) Validate the claims are allowed to obtain the keytab with the given name
+   #    by checking to see if name exist in claim keytabs. We split the value
+   #    on colon and look for any match.
+   auth_base
+   auth_nonce
+   split(input.claims.service.keytabs,":")[_] == input.name
+}
+
+auth_get_secret {
+   # 1) Validate defaults with auth_base
+   # 2) Validate the nonce with auth_nonce
+   # 3) Validate the claims are allowed to obtain the secret with the given name
+   #    by checking to see if name exist in claim secrets. We split the value
+   #    on comma and look for any match.
+   auth_base
+   auth_nonce
+   split(input.claims.service.secrets,":")[_] == input.name
+}
 `
 
 	exampleInput = `
@@ -70,8 +77,8 @@ var (
 	"exp": 1599844897,
 	"aud": "daisy",
 	"service": {
-	  "keytabs": "user1@example.com,user2@example.com",
-	  "secrets": ["secret1"]
+	  "keytabs": "user1:user2",
+	  "secrets": "secret1:secret2"
 	}
   }
 `
@@ -104,14 +111,14 @@ func TestPolicy1(t *testing.T) {
 
 	nonces := []string{"none"}
 
-	err = policy.AuthGetKeytab(ctx, claims, nonces, "user1@example.com")
+	err = policy.AuthGetKeytab(ctx, claims, nonces, "user1")
 	if err == nil {
 		t.Errorf("Unexpected")
 	}
 
 	nonces = append(nonces, "daisy")
 
-	err = policy.AuthGetKeytab(ctx, claims, nonces, "user1@example.com")
+	err = policy.AuthGetKeytab(ctx, claims, nonces, "user1")
 	if err != nil {
 		t.Errorf("Unexpected")
 	}

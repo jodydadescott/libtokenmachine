@@ -27,10 +27,9 @@ import (
 
 // Policy policy
 type Policy struct {
-	Claims    interface{} `json:"claims,omitempty" yaml:"claims,omitempty"`
-	Nonces    []string    `json:"nonces,omitempty" yaml:"nonces,omitempty"`
-	Principal string      `json:"principal,omitempty" yaml:"principal,omitempty"`
-	Secret    string      `json:"secret,omitempty" yaml:"secret,omitempty"`
+	Claims interface{} `json:"claims,omitempty" yaml:"claims,omitempty"`
+	Nonces []string    `json:"nonces,omitempty" yaml:"nonces,omitempty"`
+	Name   string      `json:"name,omitempty" yaml:"name,omitempty"`
 }
 
 // PolicyConfig config
@@ -96,13 +95,13 @@ func (t *PolicyEngine) AuthGetNonce(ctx context.Context, claims map[string]inter
 	return libtokenmachine.ErrServerFail
 }
 
-// AuthGetKeytab Auth that claims, nonce and principals are allowed to get requested keytab
-func (t *PolicyEngine) AuthGetKeytab(ctx context.Context, claims map[string]interface{}, nonces []string, principal string) error {
+// AuthGetKeytab Authorize GetKeytab
+func (t *PolicyEngine) AuthGetKeytab(ctx context.Context, claims map[string]interface{}, nonces []string, name string) error {
 
 	input := &Policy{
-		Claims:    claims,
-		Nonces:    nonces,
-		Principal: principal,
+		Claims: claims,
+		Nonces: nonces,
+		Name:   name,
 	}
 
 	results, err := t.query.Eval(ctx, rego.EvalInput(input))
@@ -128,13 +127,13 @@ func (t *PolicyEngine) AuthGetKeytab(ctx context.Context, claims map[string]inte
 	return libtokenmachine.ErrServerFail
 }
 
-// AuthGetSecret Auth request for secret
+// AuthGetSecret Authorize GetSecret
 func (t *PolicyEngine) AuthGetSecret(ctx context.Context, claims map[string]interface{}, nonces []string, name string) error {
 
 	input := &Policy{
 		Claims: claims,
 		Nonces: nonces,
-		Secret: name,
+		Name:   name,
 	}
 
 	results, err := t.query.Eval(ctx, rego.EvalInput(input))

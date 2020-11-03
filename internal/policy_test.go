@@ -52,13 +52,13 @@ var (
 	   # match with requested principal
 	   auth_base
 	   auth_nonce
-	   split(input.claims.service.keytab,",")[_] == input.principal
+	   split(input.claims.service.keytabs,",")[_] == input.name
 	}
 	
 	auth_get_secret {
 	   auth_base
 	   auth_nonce
-	   input.claims.service.secrets[_] == input.secret
+	   input.claims.service.secrets[_] == input.name
 	}
 `
 
@@ -70,7 +70,7 @@ var (
 	"exp": 1599844897,
 	"aud": "daisy",
 	"service": {
-	  "keytab": "user1@example.com,user2@example.com",
+	  "keytabs": "user1@example.com,user2@example.com",
 	  "secrets": ["secret1"]
 	}
   }

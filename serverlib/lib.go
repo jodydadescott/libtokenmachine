@@ -59,8 +59,8 @@ func NewInstance(config *libtokenmachine.Config) (*TokenMachineServer, error) {
 		secretConfig.Secrets = config.SecretSecrets
 	}
 
-	if config.SecretLifetime > 0 {
-		secretConfig.Lifetime = config.SecretLifetime
+	if config.SharedSecretLifetime > 0 {
+		secretConfig.Lifetime = config.SharedSecretLifetime
 	}
 
 	if config.KeytabKeytabs != nil {

@@ -20,10 +20,10 @@ import "time"
 
 // Config ...
 type Config struct {
-	Policy         string          // OPA/Rego policy that will be used to authorize request
-	NonceLifetime  time.Duration   // Lifetime of Nonce (default is 1 minute)
-	SecretSecrets  []*SharedSecret // Secrets that will be served
-	KeytabKeytabs  []*Keytab       // Keytabs that will be served
-	KeytabLifetime time.Duration   // Default lifetime
-	SecretLifetime time.Duration   // Default lifetime
+	Policy               string          // OPA/Rego policy that will be used to authorize request
+	NonceLifetime        time.Duration   // Lifetime of Nonce (default is 1 minute)
+	SecretSecrets        []*SharedSecret // Secrets that will be served
+	KeytabKeytabs        []*Keytab       // Keytabs that will be served
+	KeytabLifetime       time.Duration   // Default lifetime
+	SharedSecretLifetime time.Duration   // Default lifetime
 }
